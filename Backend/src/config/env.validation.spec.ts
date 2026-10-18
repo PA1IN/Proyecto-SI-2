@@ -5,7 +5,12 @@ describe('validate (variables de entorno)', () => {
     expect(validate({})).toMatchObject({
       NODE_ENV: Environment.Development,
       PORT: 3000,
+      CORS_ORIGIN: 'http://localhost:5173',
     });
+  });
+
+  it('rechaza un CORS_ORIGIN que no es URL', () => {
+    expect(() => validate({ CORS_ORIGIN: 'no-es-url' })).toThrow(/CORS_ORIGIN/);
   });
 
   it('convierte PORT de string a número', () => {
