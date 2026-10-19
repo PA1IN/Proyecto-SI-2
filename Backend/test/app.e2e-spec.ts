@@ -25,8 +25,17 @@ describe('App (e2e)', () => {
     expect(res.body.info.title).toBe('API Inventario Lesgo');
   });
 
-  it('una ruta inexistente bajo /api/v1 responde 404', () => {
-    return request(app.getHttpServer()).get('/api/v1/no-existe').expect(404);
+  it('una ruta inexistente responde 404 con el formato de error común', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/api/v1/no-existe')
+      .expect(404);
+    expect(res.body).toMatchObject({
+      statusCode: 404,
+      error: 'NOT_FOUND',
+      path: '/api/v1/no-existe',
+    });
+    expect(typeof res.body.message).toBe('string');
+    expect(new Date(res.body.timestamp).toISOString()).toBe(res.body.timestamp);
   });
 
   it('permite CORS desde el frontend', () => {
