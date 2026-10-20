@@ -7,9 +7,9 @@ Contexto y reglas de trabajo para retomar el proyecto en cualquier sesión. Resp
 - **Solo modificar archivos en local.** No hacer `git commit` ni `git push`: el equipo revisa, commitea y pushea. Hacerlo solo si se pide de forma explícita en ese momento.
 - **Cambios pequeños o medianos.** Cada entrega de trabajo debe equivaler a un commit revisable (un tema por vez). Si una tarea es grande, dividirla en pasos y detenerse después de cada uno para revisión.
 - **Al terminar cada cambio**, dar un resumen breve: qué archivos se tocaron, qué se hizo y para qué. Proponer también un mensaje de commit.
-- **Antes de entregar**, correr en `Backend/proyecto-inventario/`: `npm run lint`, `npm test`, `npm run test:e2e` y `npm run build`. Informar el resultado real, aunque falle.
+- **Antes de entregar**, correr en `Backend/`: `npm run lint`, `npm test`, `npm run test:e2e` y `npm run build`. Informar el resultado real, aunque falle.
 - **Instalar cada dependencia en el paso que la necesita**, para que el diff de `package.json` sea fácil de revisar.
-- **Rama de trabajo actual:** `config-base`.
+- **Rama de trabajo actual:** `fixes-previo-a-entidades`.
 - **Nunca escribir credenciales** (host, usuario o contraseña de la BD) en archivos versionados, en el chat ni en commits. Van solo en `.env`, que está en `.gitignore`.
 - **No crear tablas ni modificar la BD central sin que el equipo lo pida.** Es compartida con los demás grupos.
 
@@ -63,23 +63,24 @@ Contexto y reglas de trabajo para retomar el proyecto en cualquier sesión. Resp
 
 ## Stack
 
-- **Backend:** `Backend/proyecto-inventario/`, con NestJS 12 (ESM, `"type": "module"`, imports con extensión `.js`), TypeScript 6, vitest + supertest y oxlint + prettier.
+- **Backend:** `Backend/`, con NestJS 12 (ESM, `"type": "module"`, imports con extensión `.js`), TypeScript 6, vitest + supertest y oxlint + prettier.
 - **Frontend:** React + Vite (puerto 5173). Todavía no existe en el repo.
-- **BD:** PostgreSQL en Neon (servicio en la nube), base `si2`.
+- **BD:** PostgreSQL en un proyecto nuevo de Neon (servicio en la nube), base `si2_22026`.
 - **Comunicación entre módulos:** HTTP/REST.
 
-## Base de datos central (lo que se sabe)
+## Base de datos central (servidor nuevo, octubre 2026)
 
-- **Organización:** hay un schema por módulo: `Compras`, `Inventario`, `Logistica`, `Maestros`, `RRHH`, `Ventas`, además de `SI1`, `SIA` y `public`.
-- **Mayúsculas en los nombres:** los schemas llevan mayúscula inicial, así que en SQL manual van entre comillas (`"Inventario"`). En TypeORM basta con `schema: 'Inventario'`.
-- **El schema `Inventario` tiene tablas del semestre pasado,** que no corresponden a nuestro modelo:
-  - `"Producto"`: con id `uuid`, `precio` y un único `stock_actual`.
-  - `inv_movimiento`: con id `uuid` y un enum `tipo`.
-  - El resto de los schemas también tiene datos antiguos y faltan los módulos nuevos de este semestre.
+- **Organización:** un schema por grupo, en minúsculas: `compras`, `crm`, `ecommerce_ventas`, `finanzas`, `inventario`, `logistica`, `postventa` y `rrhh`. Las tablas comunes van en `public`.
+  - En SQL no hacen falta comillas. En TypeORM: `schema: 'inventario'`.
+- **Estado al 20-10-2026:** todos los schemas están vacíos, `public` incluido. Se parte de cero: no hay tablas viejas que respetar.
+- **Acceso de superusuario y sin respaldo en el motor** (correo del profesor). Un error puede borrar datos de cualquier grupo sin vuelta atrás. Reglas:
+  - Todo SQL califica el schema (`inventario.inv_producto`). Una tabla sin schema cae en `public`, que es compartido.
+  - Los scripts del repo no usan `DROP` ni `TRUNCATE`, y el DDL va dentro de `BEGIN … COMMIT`.
+  - Antes de cada DDL, respaldar nuestro schema con `pg_dump -n inventario`.
+  - Nunca escribir en schemas de otros grupos ni en `public` sin acuerdo entre los grupos.
 - **Pendiente:**
-  - Confirmar con el profesor si se pueden reemplazar esas tablas (respaldarlas antes).
-  - Revisar el schema `Maestros`, permisos y FKs entre schemas.
-  - Acordar con los demás grupos el tipo de `id_producto`.
+  - Acordar entre los grupos qué va en `public` y dónde vive cada maestro canónico (propuesta: cada maestro en el schema de su dueño, `inventario.inv_producto` incluido, y FKs entre schemas).
+  - Las FKs hacia tablas de otros módulos solo se pueden crear cuando esas tablas existan.
 - **Conexión:**
   - El endpoint de Neon con `-pooler` sirve para la app.
   - Para DDL, usar la conexión directa (el mismo host sin `-pooler`).
@@ -158,7 +159,7 @@ inv_recepciones_compra(id_movimiento PK/FK, id_proveedor FK→PROVEEDOR, id_oc F
 Monolito modular NestJS en capas (controller → service → repositorio). Las integraciones son adaptadores aislados.
 
 ```
-Backend/proyecto-inventario/
+Backend/
 ├─ .env.example
 ├─ db/ddl/*.sql, db/dml/*.sql   ← fuente de verdad del esquema (entregable)
 └─ src/
@@ -182,19 +183,19 @@ Backend/proyecto-inventario/
 - Usar vistas SQL para los KPIs.
 - Usar baja lógica (`activo`), no borrado físico.
 
-## Plan inmediato: base del backend sin BD (rama `config-base`)
+## Plan inmediato: base del backend sin BD (rama `fixes-previo-a-entidades`)
 
-Cada paso equivale a un commit, con revisión entre pasos:
+Cada paso equivale a un commit, con revisión entre pasos. Los pasos 1 a 3 ya están hechos.
 
-1. Configuración validada (`@nestjs/config` + class-validator) y `.env.example`.
-2. `setup-app.ts`: prefijo `/api/v1`, CORS, `ValidationPipe` y Swagger. Se elimina el controlador de ejemplo del scaffold.
-3. Filtro global de errores con un formato único.
+1. ✅ Configuración validada (`@nestjs/config` + class-validator) y `.env.example`.
+2. ✅ `setup-app.ts`: prefijo `/api/v1`, CORS, `ValidationPipe` y Swagger. Se elimina el controlador de ejemplo del scaffold.
+3. ✅ Filtro global de errores con un formato único.
 4. `GET /api/v1/health` (sin BD) y los e2e correspondientes.
 5. Auth simulado: JWT, guards, decoradores, roles provisionales y token de prueba solo en desarrollo.
 6. DTO de paginación.
 7. README en español.
 
-**Después, cuando se cierren las decisiones abiertas:** TypeORM y conexión a Neon o Postgres local, DDL/DML, entidades, los módulos de productos y movimientos (los 2 formularios de la demo del Sprint 2) y el frontend.
+**Después, cuando se cierren las decisiones abiertas:** TypeORM y conexión a la BD (schema `inventario`), DDL/DML, entidades, los módulos de productos y movimientos (los 2 formularios de la demo del Sprint 2) y el frontend.
 
 ## Material de referencia
 
