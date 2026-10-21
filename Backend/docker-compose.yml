@@ -1,0 +1,19 @@
+# Postgres local para probar DDL/DML antes de usar la BD del profesor (Neon, PostgreSQL 17).
+# Credenciales solo locales y desechables; las de Neon van únicamente en .env.
+services:
+  postgres:
+    image: postgres:17
+    container_name: inventario-postgres
+    environment:
+      POSTGRES_USER: inventario
+      POSTGRES_PASSWORD: inventario
+      POSTGRES_DB: si2_local
+    ports:
+      - '5432:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # Solo se ejecuta la primera vez que se crea el volumen.
+      - ./db/local:/docker-entrypoint-initdb.d:ro
+
+volumes:
+  pgdata:
