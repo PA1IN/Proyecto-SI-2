@@ -5,7 +5,7 @@ BEGIN;
 
 DO $$
 DECLARE
-  t int; p int; b int; m int; r1 int; r2 int; d int;
+  t int; p int; b int; m int; m2 int; r1 int; r2 int; e1 int; e2 int; d int;
   ok boolean;
 BEGIN
   INSERT INTO inventario.inv_temas (nombre_tema) VALUES ('Tema prueba') RETURNING id_tema INTO t;
@@ -87,7 +87,41 @@ BEGIN
   -- Caso permitido: cerrar una RESERVA PENDIENTE.
   UPDATE inventario.inv_movimiento SET estado = 'COMPLETADO' WHERE id_movimiento = r1;
 
-  RAISE NOTICE 'Validación del DDL: OK (10 rechazos esperados y 1 cierre de reserva permitido)';
+  -- Subtablas de despacho y recepción.
+  INSERT INTO inventario.inv_movimiento (id_empleado, id_pedido, tipo_operacion, estado)
+    VALUES (1, 100, 'EGRESO', 'COMPLETADO') RETURNING id_movimiento INTO e1;
+  INSERT INTO inventario.inv_movimiento (id_empleado, id_pedido, tipo_operacion, estado)
+    VALUES (1, 101, 'EGRESO', 'COMPLETADO') RETURNING id_movimiento INTO e2;
+  INSERT INTO inventario.inv_movimiento (id_empleado, tipo_operacion, estado)
+    VALUES (1, 'INGRESO', 'COMPLETADO') RETURNING id_movimiento INTO m2;
+  INSERT INTO inventario.inv_despachos_operario (id_movimiento, id_despacho) VALUES (e1, 500);
+  INSERT INTO inventario.inv_recepciones_compra (id_movimiento, id_proveedor, id_oc, nro_guia_proveedor)
+    VALUES (m, 1, 10, 'G-1');
+
+  ok := false;
+  BEGIN
+    INSERT INTO inventario.inv_despachos_operario (id_movimiento, id_despacho) VALUES (e2, 500);
+  EXCEPTION WHEN unique_violation THEN ok := true; END;
+  ASSERT ok, 'Se permitió registrar dos veces el mismo despacho';
+
+  ok := false;
+  BEGIN
+    INSERT INTO inventario.inv_despachos_operario (id_movimiento, id_despacho) VALUES (-1, 501);
+  EXCEPTION WHEN foreign_key_violation THEN ok := true; END;
+  ASSERT ok, 'Se permitió un despacho sin movimiento';
+
+  ok := false;
+  BEGIN
+    INSERT INTO inventario.inv_recepciones_compra (id_movimiento, id_proveedor, id_oc, nro_guia_proveedor)
+      VALUES (m2, 1, 10, 'G-1');
+  EXCEPTION WHEN unique_violation THEN ok := true; END;
+  ASSERT ok, 'Se permitió registrar dos veces la misma guía de una OC';
+
+  -- Caso permitido: la misma OC llega en una segunda entrega con otra guía.
+  INSERT INTO inventario.inv_recepciones_compra (id_movimiento, id_proveedor, id_oc, nro_guia_proveedor)
+    VALUES (m2, 1, 10, 'G-2');
+
+  RAISE NOTICE 'Validación del DDL: OK (13 rechazos esperados y 4 casos permitidos)';
 END;
 $$;
 

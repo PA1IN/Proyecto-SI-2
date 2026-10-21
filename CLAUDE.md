@@ -96,11 +96,12 @@ inv_bodegas(id_bodega serial PK, nombre_bodega, ubicacion_fisica)
 inv_stock_bodega(id_producto PK/FK, id_bodega PK/FK, cantidad_disponible, cantidad_reservada, cantidad_minima)
 inv_movimiento(id_movimiento serial PK, id_empleado int, id_pedido int null, id_devolucion int null, fecha_registro, tipo_operacion, estado)
 inv_detalles_movimiento(id_detalle serial PK, id_movimiento FK, id_producto FK, id_bodega FK, cantidad)
+inv_despachos_operario(id_movimiento PK/FK, id_despacho int UNIQUE, observaciones_picking)        -- vacía hasta el Sprint 3
+inv_recepciones_compra(id_movimiento PK/FK, id_proveedor int, id_oc int, nro_guia_proveedor, UNIQUE(id_oc, nro_guia_proveedor))  -- vacía hasta el Sprint 3
 
--- Sprint 3 (cuando existan las tablas de Logística, Compras, RRHH, e-Commerce y Postventa)
-FKs: id_empleado → rrhh, id_pedido → ecommerce_ventas, id_devolucion → postventa
-inv_despachos_operario(id_movimiento PK/FK, id_despacho FK→DESPACHO UNIQUE, observaciones_picking)
-inv_recepciones_compra(id_movimiento PK/FK, id_proveedor FK→PROVEEDOR, id_oc FK→ORDEN_COMPRA, nro_guia_proveedor, UNIQUE(id_oc, nro_guia_proveedor))
+-- Sprint 3 (cuando existan las tablas de los otros módulos): agregar las FKs con ALTER TABLE
+id_empleado → rrhh, id_pedido → ecommerce_ventas, id_devolucion → postventa,
+id_despacho → logistica, id_proveedor e id_oc → compras
 ```
 
 ### Decisiones tomadas
@@ -141,7 +142,8 @@ inv_recepciones_compra(id_movimiento PK/FK, id_proveedor FK→PROVEEDOR, id_oc F
 - **Sin `motivo` en el `AJUSTE`:** por tiempo. Los ajustes negativos cuentan juntos como diferencias de inventario.
 - **Sin `fecha_cierre`:** el tiempo entre reserva y despacho se calcula cruzando la `RESERVA` con el `EGRESO` del mismo `id_pedido`.
 - **Se eliminan `coleccion`, `edad_minima` y `tipo_construccion`** de `inv_producto`, para regirse por el dataset (Rebrickable/Kaggle).
-- **Sprint 2 sin FKs a otros módulos:** `id_empleado`, `id_pedido` e `id_devolucion` son `int` sin FK. Las subtablas de despacho y recepción se crean en el Sprint 3.
+- **Sprint 2 sin FKs a otros módulos:** `id_empleado`, `id_pedido`, `id_devolucion`, `id_despacho`, `id_proveedor` e `id_oc` son `int` sin FK. Las FKs se agregan en el Sprint 3 con `ALTER TABLE`; hay que confirmar con cada grupo que sus PK sean `int`.
+- **Subtablas creadas y vacías (22-10-2026):** `inv_despachos_operario` e `inv_recepciones_compra` ya existen para que el esquema del módulo esté completo, pero sin datos de prueba: se llenan cuando Logística y Compras confirmen despachos y recepciones (Sprint 3). Esto justifica que tengan menos de 10 filas.
 
 ### Decisiones abiertas (no bloquean el DDL)
 

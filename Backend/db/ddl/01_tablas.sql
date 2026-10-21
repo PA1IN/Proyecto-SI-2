@@ -1,6 +1,7 @@
--- Tablas del módulo Inventario (Sprint 2), schema inventario.
+-- Tablas del módulo Inventario, schema inventario.
 -- Sin DROP: se puede ejecutar varias veces sin borrar datos (IF NOT EXISTS).
--- Las FKs a otros módulos (id_empleado, id_pedido, id_devolucion) se agregan en el Sprint 3.
+-- Las columnas que apuntan a otros módulos son int sin FK hasta el Sprint 3, cuando
+-- existan esas tablas: id_empleado, id_pedido, id_devolucion, id_despacho, id_proveedor, id_oc.
 
 BEGIN;
 
@@ -37,9 +38,9 @@ CREATE TABLE IF NOT EXISTS inventario.inv_stock_bodega (
 
 CREATE TABLE IF NOT EXISTS inventario.inv_movimiento (
   id_movimiento   serial      PRIMARY KEY,
-  id_empleado     int         NOT NULL,  -- FK a rrhh en el Sprint 3
-  id_pedido       int,                   -- FK a ecommerce_ventas en el Sprint 3
-  id_devolucion   int,                   -- FK a postventa en el Sprint 3
+  id_empleado     int         NOT NULL,  -- TODO Sprint 3: FK a rrhh (empleado)
+  id_pedido       int,                   -- TODO Sprint 3: FK a ecommerce_ventas (pedido)
+  id_devolucion   int,                   -- TODO Sprint 3: FK a postventa (devolución)
   fecha_registro  timestamptz NOT NULL DEFAULT now(),
   tipo_operacion  varchar(20) NOT NULL CHECK (tipo_operacion IN
                     ('INGRESO', 'EGRESO', 'RESERVA', 'LIBERACION', 'AJUSTE', 'DEVOLUCION')),
@@ -58,6 +59,23 @@ CREATE TABLE IF NOT EXISTS inventario.inv_detalles_movimiento (
   id_producto    int    NOT NULL REFERENCES inventario.inv_producto (id_producto) ON DELETE RESTRICT,
   id_bodega      int    NOT NULL REFERENCES inventario.inv_bodegas (id_bodega) ON DELETE RESTRICT,
   cantidad       int    NOT NULL CHECK (cantidad <> 0)
+);
+
+-- Subtablas: copian el id_movimiento del padre como PK y FK. Quedan vacías hasta el Sprint 3,
+-- cuando Logística confirme despachos y Compras/Logística confirmen recepciones.
+CREATE TABLE IF NOT EXISTS inventario.inv_despachos_operario (
+  id_movimiento          int          PRIMARY KEY REFERENCES inventario.inv_movimiento (id_movimiento) ON DELETE RESTRICT,
+  id_despacho            int          NOT NULL UNIQUE,  -- TODO Sprint 3: FK a logistica (despacho). UNIQUE evita procesarlo dos veces
+  observaciones_picking  varchar(255)
+);
+
+CREATE TABLE IF NOT EXISTS inventario.inv_recepciones_compra (
+  id_movimiento       int         PRIMARY KEY REFERENCES inventario.inv_movimiento (id_movimiento) ON DELETE RESTRICT,
+  id_proveedor        int         NOT NULL,  -- TODO Sprint 3: FK a compras (proveedor). El backend valida que sea el de la OC
+  id_oc               int         NOT NULL,  -- TODO Sprint 3: FK a compras (orden de compra)
+  nro_guia_proveedor  varchar(50) NOT NULL,
+  -- Una OC puede llegar en varias entregas, pero cada guía se registra una sola vez.
+  CONSTRAINT uq_recepcion_oc_guia UNIQUE (id_oc, nro_guia_proveedor)
 );
 
 -- Postgres no indexa las FKs por sí solo.
