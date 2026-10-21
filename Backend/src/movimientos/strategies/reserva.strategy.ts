@@ -1,4 +1,3 @@
-// src/movimientos/strategies/reserva.strategy.ts
 import { Injectable, ConflictException } from '@nestjs/common';
 import { EntityManager } from 'typeorm';
 import { StockRepository } from '../../stock/repositories/stock.repository.js';
