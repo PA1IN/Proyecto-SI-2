@@ -14,6 +14,8 @@ services:
       - pgdata:/var/lib/postgresql/data
       # Solo se ejecuta la primera vez que se crea el volumen.
       - ./db/local:/docker-entrypoint-initdb.d:ro
+      # Scripts del repo, para ejecutarlos con psql -f /db/... desde cualquier terminal.
+      - ./db:/db:ro
 
 volumes:
   pgdata:
