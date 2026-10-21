@@ -23,6 +23,14 @@ describe('App (e2e)', () => {
       .get('/api/docs-json')
       .expect(200);
     expect(res.body.info.title).toBe('API Inventario Lesgo');
+    expect(res.body.paths).toHaveProperty('/api/v1/health');
+  });
+
+  it('GET /api/v1/health responde ok', () => {
+    return request(app.getHttpServer())
+      .get('/api/v1/health')
+      .expect(200)
+      .expect({ status: 'ok' });
   });
 
   it('una ruta inexistente responde 404 con el formato de error común', async () => {
