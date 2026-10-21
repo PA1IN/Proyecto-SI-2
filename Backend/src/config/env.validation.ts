@@ -1,6 +1,7 @@
 import 'reflect-metadata';
-import { plainToInstance } from 'class-transformer';
-import { IsEnum, IsInt, IsUrl, Max, Min, validateSync } from 'class-validator';
+import { plainToInstance, Transform } from 'class-transformer';
+import { IsEnum, IsInt, IsUrl, Max, Min, validateSync, IsBoolean, IsNotEmpty, IsString } from 'class-validator';
+
 
 export enum Environment {
   Development = 'development',
@@ -20,6 +21,15 @@ export class EnvironmentVariables {
   // Origen del frontend (Vite) autorizado por CORS.
   @IsUrl({ require_tld: false, require_protocol: true })
   CORS_ORIGIN: string = 'http://localhost:5173';
+
+  @IsString()
+  @IsNotEmpty()
+  POSTGRES_HOST: string = 'localhost';
+
+  @IsBoolean()
+  @Transform(({ value }) => value === 'true' || value === true)
+  POSTGRES_SSL: boolean = false;
+
 }
 
 // Lo usa ConfigModule al arrancar: si una variable no es válida, la app no inicia.
