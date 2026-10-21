@@ -78,9 +78,9 @@ Contexto y reglas de trabajo para retomar el proyecto en cualquier sesión. Resp
   - Los scripts del repo no usan `DROP` ni `TRUNCATE`, y el DDL va dentro de `BEGIN … COMMIT`.
   - Antes de cada DDL, respaldar nuestro schema con `pg_dump -n inventario`.
   - Nunca escribir en schemas de otros grupos ni en `public` sin acuerdo entre los grupos.
-- **Pendiente:**
-  - Acordar entre los grupos qué va en `public` y dónde vive cada maestro canónico (propuesta: cada maestro en el schema de su dueño, `inventario.inv_producto` incluido, y FKs entre schemas).
-  - Las FKs hacia tablas de otros módulos solo se pueden crear cuando esas tablas existan.
+- **Maestro de productos:** vive en nuestro schema (`inventario.inv_producto`), igual que en la BD del semestre anterior, donde cada maestro estaba en el schema de su módulo. Los otros grupos lo referencian con FKs entre schemas.
+- **Las FKs hacia tablas de otros módulos** solo se pueden crear cuando esas tablas existan (Sprint 3). El Sprint 2 no interactúa con otros módulos.
+- **Entorno local primero:** el DDL y el DML se prueban en un Postgres local con Docker antes de ejecutarlos en la BD del profesor. `pg_dump` y `psql` se usan desde la imagen de Docker (no están instalados en el equipo).
 - **Conexión:**
   - El endpoint de Neon con `-pooler` sirve para la app.
   - Para DDL, usar la conexión directa (el mismo host sin `-pooler`).
@@ -183,7 +183,7 @@ Backend/
 - Usar vistas SQL para los KPIs.
 - Usar baja lógica (`activo`), no borrado físico.
 
-## Plan inmediato: base del backend sin BD (rama `fixes-previo-a-entidades`)
+## Plan inmediato: base del backend y schema propio (rama `fixes-previo-a-entidades`)
 
 Cada paso equivale a un commit, con revisión entre pasos. Los pasos 1 a 3 ya están hechos.
 
@@ -191,11 +191,14 @@ Cada paso equivale a un commit, con revisión entre pasos. Los pasos 1 a 3 ya es
 2. ✅ `setup-app.ts`: prefijo `/api/v1`, CORS, `ValidationPipe` y Swagger. Se elimina el controlador de ejemplo del scaffold.
 3. ✅ Filtro global de errores con un formato único.
 4. `GET /api/v1/health` (sin BD) y los e2e correspondientes.
-5. Auth simulado: JWT, guards, decoradores, roles provisionales y token de prueba solo en desarrollo.
-6. DTO de paginación.
-7. README en español.
+5. Postgres local con Docker (`docker-compose.yml`, misma versión mayor que Neon).
+6. DDL y DML del schema `inventario`, probados en local. **Requiere cerrar antes las decisiones abiertas.**
+7. TypeORM y conexión (local o Neon según el `.env`), con `/health` verificando la BD.
+8. Auth simulado: JWT, guards, decoradores, roles provisionales y token de prueba solo en desarrollo.
+9. DTO de paginación.
+10. README en español.
 
-**Después, cuando se cierren las decisiones abiertas:** TypeORM y conexión a la BD (schema `inventario`), DDL/DML, entidades, los módulos de productos y movimientos (los 2 formularios de la demo del Sprint 2) y el frontend.
+**Después:** ejecutar el DDL/DML en la BD del profesor (con `pg_dump` previo), entidades, los módulos de productos y movimientos (los 2 formularios de la demo del Sprint 2) y el frontend. Los pasos 8 y 9 pueden adelantarse mientras el equipo cierra las decisiones abiertas.
 
 ## Material de referencia
 
