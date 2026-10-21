@@ -1,13 +1,11 @@
+import { BodegaDisponible } from "../interfaces/bodega-disponible.interface.js";
+import { AsignacionBodega } from '../interfaces/asignacion-bodega.interface.js';
 
-export interface BodegaDisponible {
-  id_bodega: number;
-  cantidad_disponible: number;
-}
 
 export function calcularAsignacionReserva(
   bodegas: BodegaDisponible[],
   cantidadSolicitada: number,
-): { id_bodega: number; cantidad_asignada: number }[] | null {
+): AsignacionBodega[] | null {
   const ordenadas = [...bodegas]
     .filter((b) => b.cantidad_disponible > 0)
     .sort((a, b) => b.cantidad_disponible !== a.cantidad_disponible 

@@ -1,9 +1,10 @@
 // src/movimientos/strategies/reserva.strategy.ts
 import { Injectable, ConflictException } from '@nestjs/common';
 import { EntityManager } from 'typeorm';
-import { MovimientoStrategy, MovimientoContext } from './movimiento.strategy.js';
 import { StockRepository } from '../../stock/repositories/stock.repository.js';
 import { calcularAsignacionReserva } from '../../stock/utils/greedy-allocation.util.js';
+import { MovimientoContext } from '../interfaces/movimiento-context.interface.js';
+import { MovimientoStrategy } from '../interfaces/movimiento-strategy.interface.js';
 
 @Injectable()
 export class ReservaStrategy implements MovimientoStrategy {
