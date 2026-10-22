@@ -23,4 +23,7 @@ export class InvStockBodega {
 
   @Column({ type: 'int', default: 0 })
   cantidad_reservada: number;
+
+  @Column({ type: 'int', default: 0})
+  cantidad_minima: number;
 }

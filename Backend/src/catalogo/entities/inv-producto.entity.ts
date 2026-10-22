@@ -19,20 +19,8 @@ export class InvProducto {
   @Column({ type: 'varchar', length: 200 })
   nombre_set: string;
 
-  @Column({ type: 'varchar', length: 100, nullable: true })
-  coleccion: string;
-
   @Column({ type: 'int' })
   cant_piezas: number;
-
-  @Column({ type: 'int' })
-  edad_minima: number;
-
-  @Column({ type: 'varchar', length: 50, nullable: true })
-  tipo_construccion: string;
-
-  @Column({ type: 'int', default: 5 })
-  stock_minimo: number;
 
   @Column({ type: 'boolean', default: true })
   activo: boolean;
