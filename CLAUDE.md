@@ -86,17 +86,22 @@ Contexto y reglas de trabajo para retomar el proyecto en cualquier sesión. Resp
   - Para DDL, usar la conexión directa (el mismo host sin `-pooler`).
   - Neon exige SSL (`sslmode=require`).
 
-## Modelo de datos acordado (aún sin DDL)
+## Modelo de datos acordado (DDL en `Backend/db/ddl/`)
 
 ```
+-- Sprint 2 (schema inventario)
 inv_temas(id_tema serial PK, nombre_tema)
-inv_producto(id_producto serial PK, id_tema FK, sku UNIQUE, nombre_set, coleccion, cant_piezas, edad_minima, tipo_construccion, activo)
+inv_producto(id_producto serial PK, id_tema FK, sku UNIQUE, nombre_set, cant_piezas, activo)
 inv_bodegas(id_bodega serial PK, nombre_bodega, ubicacion_fisica)
-inv_stock_bodega(id_producto PK/FK, id_bodega PK/FK, cantidad_disponible, cantidad_reservada)
-inv_movimiento(id_movimiento serial PK, id_empleado FK→rrhh_empleado, id_pedido FK→PEDIDO null, id_devolucion FK→DEVOLUCION null, fecha_registro, tipo_operacion, estado)
+inv_stock_bodega(id_producto PK/FK, id_bodega PK/FK, cantidad_disponible, cantidad_reservada, cantidad_minima)
+inv_movimiento(id_movimiento serial PK, id_empleado int, id_pedido int null, id_devolucion int null, fecha_registro, tipo_operacion, estado)
 inv_detalles_movimiento(id_detalle serial PK, id_movimiento FK, id_producto FK, id_bodega FK, cantidad)
-inv_despachos_operario(id_movimiento PK/FK, id_despacho FK→DESPACHO UNIQUE, observaciones_picking)
-inv_recepciones_compra(id_movimiento PK/FK, id_proveedor FK→PROVEEDOR, id_oc FK→ORDEN_COMPRA, nro_guia_proveedor, UNIQUE(id_oc, nro_guia_proveedor))
+inv_despachos_operario(id_movimiento PK/FK, id_despacho int UNIQUE, observaciones_picking)        -- vacía hasta el Sprint 3
+inv_recepciones_compra(id_movimiento PK/FK, id_proveedor int, id_oc int, nro_guia_proveedor, UNIQUE(id_oc, nro_guia_proveedor))  -- vacía hasta el Sprint 3
+
+-- Sprint 3 (cuando existan las tablas de los otros módulos): agregar las FKs con ALTER TABLE
+id_empleado → rrhh, id_pedido → ecommerce_ventas, id_devolucion → postventa,
+id_despacho → logistica, id_proveedor e id_oc → compras
 ```
 
 ### Decisiones tomadas
@@ -131,17 +136,21 @@ inv_recepciones_compra(id_movimiento PK/FK, id_proveedor FK→PROVEEDOR, id_oc F
   - Un trigger impide `DELETE` y `UPDATE` en movimientos y detalles. La única excepción es pasar el estado desde `PENDIENTE`. Los errores se corrigen con un `AJUSTE`.
 - **Todo cambio de stock pasa por un único servicio,** en una transacción con `UPDATE ... WHERE cantidad_disponible >= :cant`. Si no afecta filas, responde **409**.
 
-### Decisiones abiertas (bloquean DDL y entidades)
+### Decisiones del modelo (cerradas el 21-10-2026)
 
-- **`stock_minimo`:** propuesta, columna en `inv_producto`.
-- **`motivo` del `AJUSTE`** (`CONTEO`, `MERMA`, `PERDIDA`, `CORRECCION`): propuesta, nullable con un `CHECK` que lo exija en `AJUSTE`.
-- **`coleccion`:** duplica a `id_tema`. Propuesta: eliminarla.
-- **`edad_minima` y `tipo_construccion`:** no vienen en el dataset de Kaggle/Rebrickable. Propuesta: nullable.
-- **`fecha_cierre` opcional en `inv_movimiento`:** propuesta, agregarla.
+- **Stock mínimo:** `cantidad_minima` en `inv_stock_bodega`, por producto y bodega. La alerta de stock bajo y los quiebres se miden por bodega.
+- **Sin `motivo` en el `AJUSTE`:** por tiempo. Los ajustes negativos cuentan juntos como diferencias de inventario.
+- **Sin `fecha_cierre`:** el tiempo entre reserva y despacho se calcula cruzando la `RESERVA` con el `EGRESO` del mismo `id_pedido`.
+- **Se eliminan `coleccion`, `edad_minima` y `tipo_construccion`** de `inv_producto`, para regirse por el dataset (Rebrickable/Kaggle).
+- **Sprint 2 sin FKs a otros módulos:** `id_empleado`, `id_pedido`, `id_devolucion`, `id_despacho`, `id_proveedor` e `id_oc` son `int` sin FK. Las FKs se agregan en el Sprint 3 con `ALTER TABLE`; hay que confirmar con cada grupo que sus PK sean `int`.
+- **Subtablas creadas y vacías (22-10-2026):** `inv_despachos_operario` e `inv_recepciones_compra` ya existen para que el esquema del módulo esté completo, pero sin datos de prueba: se llenan cuando Logística y Compras confirmen despachos y recepciones (Sprint 3). Esto justifica que tengan menos de 10 filas.
+
+### Decisiones abiertas (no bloquean el DDL)
+
 - **`DEVOLUCION`:** pendiente con Postventa si reingresa como disponible o queda en revisión.
-- **KPIs:** rotación, quiebres, merma, tiempo entre reserva y despacho, y días de cobertura.
+- **KPIs:** se definen más adelante con los datos que haya.
 - **Matriz de roles:** Jefe de Bodega, Operador, Marketing y Admin, con nombres alineados con RRHH.
-- **Diagrama draw.io:** quitar las tildes de `tipo_operacion`, corregir la errata "inv_movimientos" y cambiar "Hereda de" por "FK a".
+- **Diagrama draw.io:** quitar las tildes de `tipo_operacion`, corregir la errata "inv_movimientos", cambiar "Hereda de" por "FK a", agregar `cantidad_minima` y quitar `coleccion`, `edad_minima` y `tipo_construccion`.
 
 ## Coordinación con otros equipos
 
@@ -168,7 +177,7 @@ Backend/
    ├─ common/                 ← filtro global de errores, paginación
    ├─ auth/                   ← JwtAuthGuard + RolesGuard + @Public/@Roles/@CurrentUser (mock → RRHH)
    ├─ health/
-   ├─ database/               ← TypeORM (synchronize: false)   [cuando se cierre el modelo]
+   ├─ database/               ← TypeORM (synchronize: false)
    ├─ catalogo/ bodegas/ stock/ movimientos/ alertas/ integraciones/ reportes/
 ```
 
@@ -185,14 +194,14 @@ Backend/
 
 ## Plan inmediato: base del backend y schema propio (rama `fixes-previo-a-entidades`)
 
-Cada paso equivale a un commit, con revisión entre pasos. Los pasos 1 a 3 ya están hechos.
+Cada paso equivale a un commit, con revisión entre pasos. Los pasos 1 a 5 ya están hechos.
 
 1. ✅ Configuración validada (`@nestjs/config` + class-validator) y `.env.example`.
 2. ✅ `setup-app.ts`: prefijo `/api/v1`, CORS, `ValidationPipe` y Swagger. Se elimina el controlador de ejemplo del scaffold.
 3. ✅ Filtro global de errores con un formato único.
-4. `GET /api/v1/health` (sin BD) y los e2e correspondientes.
-5. Postgres local con Docker (`docker-compose.yml`, misma versión mayor que Neon).
-6. DDL y DML del schema `inventario`, probados en local. **Requiere cerrar antes las decisiones abiertas.**
+4. ✅ `GET /api/v1/health` (sin BD) y los e2e correspondientes.
+5. ✅ Postgres local con Docker (`docker-compose.yml`, misma versión mayor que Neon).
+6. DDL y DML del schema `inventario`, probados en local (6a: DDL y triggers; 6b: DML).
 7. TypeORM y conexión (local o Neon según el `.env`), con `/health` verificando la BD.
 8. Auth simulado: JWT, guards, decoradores, roles provisionales y token de prueba solo en desarrollo.
 9. DTO de paginación.
