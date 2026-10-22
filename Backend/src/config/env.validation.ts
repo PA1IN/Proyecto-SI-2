@@ -30,6 +30,23 @@ export class EnvironmentVariables {
   @Transform(({ value }) => value === 'true' || value === true)
   POSTGRES_SSL: boolean = false;
 
+  @IsString()
+  @IsNotEmpty()
+  POSTGRES_USER: string = 'inventario';
+
+  @IsString()
+  @IsNotEmpty()
+  POSTGRES_PASSWORD: string = 'inventario';
+
+  @IsString()
+  @IsNotEmpty()
+  POSTGRES_DB: string = 'si2_local';
+
+  @IsInt()
+  @Min(1)
+  @Max(65535)
+  POSTGRES_PORT: number = 5432;
+
 }
 
 // Lo usa ConfigModule al arrancar: si una variable no es válida, la app no inicia.
