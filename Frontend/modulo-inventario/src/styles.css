@@ -1,19 +1,49 @@
 * { box-sizing: border-box; }
 
+:root {
+  --rojo: #d92d20;
+  --rojo-oscuro: #b42318;
+}
+
 body {
   margin: 0;
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   background: #f5f6f8;
   color: #1f2933;
 }
+.banner {
+  position: relative;
+  background: var(--rojo);
+  color: #fff;
+  padding: 28px 16px;
+}
+
+.banner h1 {
+  max-width: 1100px;
+  margin: 0 auto;
+  font-size: 1.9rem;
+  letter-spacing: 0.2px;
+}
+
+.banner::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% - 1px);
+  height: 15px;
+  background: var(--rojo);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 28 14'%3E%3Cpath d='M0 0H28L14 14Z'/%3E%3C/svg%3E") repeat-x 0 0 / 28px 15px;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 28 14'%3E%3Cpath d='M0 0H28L14 14Z'/%3E%3C/svg%3E") repeat-x 0 0 / 28px 15px;
+}
 
 .pagina {
   max-width: 1100px;
   margin: 0 auto;
-  padding: 24px 16px;
+  padding: 36px 16px 24px;
 }
 
-.cabecera {
+.barra {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -21,30 +51,28 @@ body {
   margin-bottom: 16px;
 }
 
-.cabecera h1 { margin: 0; font-size: 1.5rem; }
-.resumen { margin: 4px 0 0; color: #52606d; font-size: 0.9rem; }
-.resumen-alerta { color: #b42318; font-weight: 600; }
+.resumen { margin: 0; color: #52606d; font-size: 0.9rem; }
+.resumen-alerta { color: var(--rojo-oscuro); font-weight: 600; }
 
 .boton {
   padding: 8px 18px;
   border: none;
   border-radius: 6px;
-  background: #1f5eff;
+  background: var(--rojo);
   color: #fff;
   font-size: 0.95rem;
   cursor: pointer;
 }
-.boton:hover:not(:disabled) { background: #1748c9; }
+.boton:hover:not(:disabled) { background: var(--rojo-oscuro); }
 .boton:disabled { opacity: 0.6; cursor: progress; }
 
 .error {
   padding: 10px 14px;
   border-radius: 6px;
   background: #fde8e8;
-  color: #b42318;
+  color: var(--rojo-oscuro);
 }
 
-/* El contenedor tiene altura limitada y hace el scroll; el thead queda fijo. */
 .tabla-contenedor {
   max-height: 70vh;
   overflow-y: auto;
@@ -75,8 +103,6 @@ body {
 }
 
 .num { text-align: right !important; font-variant-numeric: tabular-nums; }
-
-/* Fila completa en rojo cuando el stock está bajo. */
 .fila-bajo td {
   background: #fde8e8;
   color: #8a1c14;

@@ -3,7 +3,7 @@ import type { Producto } from './tipos';
 const USE_MOCK = import.meta.env.VITE_USE_MOCK !== 'false';
 
 const MOCK: Producto[] = [
-  { id_producto: 1, sku: '10294', nombre_set: 'Titanic', tema: 'Icons', cant_piezas: 9090, cantidad_disponible: 3, cantidad_reservada: 1, stock_minimo: 5, activo: true },
+  { id_producto: 1, sku: '77073', nombre_set: 'Battle Bus', tema: 'Fortnite', cant_piezas: 954, cantidad_disponible: 3, cantidad_reservada: 1, stock_minimo: 5, activo: true },
   { id_producto: 2, sku: '75192', nombre_set: 'Millennium Falcon', tema: 'Star Wars', cant_piezas: 7541, cantidad_disponible: 12, cantidad_reservada: 2, stock_minimo: 5, activo: true },
   { id_producto: 3, sku: '21330', nombre_set: 'Home Alone', tema: 'Ideas', cant_piezas: 3955, cantidad_disponible: 0, cantidad_reservada: 0, stock_minimo: 4, activo: true },
   { id_producto: 4, sku: '42143', nombre_set: 'Ferrari Daytona SP3', tema: 'Technic', cant_piezas: 3778, cantidad_disponible: 8, cantidad_reservada: 0, stock_minimo: 3, activo: true },

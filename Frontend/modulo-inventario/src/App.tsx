@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { fetchProductos } from './api';
 import type { Producto } from './tipos';
 
-
 const STOCK_MINIMO_POR_DEFECTO = 5;
 
 const minimoDe = (p: Producto): number => p.stock_minimo ?? STOCK_MINIMO_POR_DEFECTO;
@@ -34,10 +33,13 @@ export default function App() {
   const bajos = productos.filter(esBajoStock).length;
 
   return (
-    <main className="pagina">
-      <header className="cabecera">
-        <div>
-          <h1>Inventario Lesgo</h1>
+    <>
+      <header className="banner">
+        <h1>Inventario Lesgo</h1>
+      </header>
+
+      <main className="pagina">
+        <div className="barra">
           <p className="resumen">
             {productos.length} productos
             {bajos > 0 && <span className="resumen-alerta"> · {bajos} con bajo stock</span>}
@@ -47,47 +49,47 @@ export default function App() {
               </span>
             )}
           </p>
+          <button className="boton" onClick={() => void cargar()} disabled={cargando}>
+            {cargando ? 'Actualizando…' : 'Actualizar'}
+          </button>
         </div>
-        <button className="boton" onClick={() => void cargar()} disabled={cargando}>
-          {cargando ? 'Actualizando…' : 'Actualizar'}
-        </button>
-      </header>
 
-      {error && <p className="error">No se pudo cargar el inventario: {error}</p>}
+        {error && <p className="error">No se pudo cargar el inventario: {error}</p>}
 
-      <div className="tabla-contenedor">
-        <table className="tabla">
-          <thead>
-            <tr>
-              <th>SKU</th>
-              <th>Nombre</th>
-              <th>Tema</th>
-              <th className="num">Piezas</th>
-              <th className="num">Disponible</th>
-              <th className="num">Reservado</th>
-              <th className="num">Mínimo</th>
-            </tr>
-          </thead>
-          <tbody>
-            {productos.map((p) => (
-              <tr key={p.id_producto} className={esBajoStock(p) ? 'fila-bajo' : ''}>
-                <td>{p.sku}</td>
-                <td>{p.nombre_set}</td>
-                <td>{p.tema}</td>
-                <td className="num">{p.cant_piezas.toLocaleString('es-CL')}</td>
-                <td className="num stock">{p.cantidad_disponible}</td>
-                <td className="num">{p.cantidad_reservada}</td>
-                <td className="num">{minimoDe(p)}</td>
-              </tr>
-            ))}
-            {!cargando && productos.length === 0 && !error && (
+        <div className="tabla-contenedor">
+          <table className="tabla">
+            <thead>
               <tr>
-                <td colSpan={7} className="vacio">No hay productos.</td>
+                <th>SKU</th>
+                <th>Nombre</th>
+                <th>Tema</th>
+                <th className="num">Piezas</th>
+                <th className="num">Disponible</th>
+                <th className="num">Reservado</th>
+                <th className="num">Mínimo</th>
               </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-    </main>
+            </thead>
+            <tbody>
+              {productos.map((p) => (
+                <tr key={p.id_producto} className={esBajoStock(p) ? 'fila-bajo' : ''}>
+                  <td>{p.sku}</td>
+                  <td>{p.nombre_set}</td>
+                  <td>{p.tema}</td>
+                  <td className="num">{p.cant_piezas.toLocaleString('es-CL')}</td>
+                  <td className="num stock">{p.cantidad_disponible}</td>
+                  <td className="num">{p.cantidad_reservada}</td>
+                  <td className="num">{minimoDe(p)}</td>
+                </tr>
+              ))}
+              {!cargando && productos.length === 0 && !error && (
+                <tr>
+                  <td colSpan={7} className="vacio">No hay productos.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </main>
+    </>
   );
 }
