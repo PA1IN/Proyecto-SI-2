@@ -9,3 +9,10 @@ export interface Producto {
   stock_minimo?: number | null;
   activo: boolean;
 }
+
+
+export interface Bodega {
+  id_bodega: number;
+  nombre_bodega: string;
+  ubicacion_fisica: string;
+}

@@ -110,3 +110,51 @@ body {
 .fila-bajo .stock { font-weight: 700; }
 
 .vacio { text-align: center !important; color: #7b8794; padding: 24px !important; }
+
+
+/* --- NUEVOS ESTILOS DE CABECERA Y BOTONES --- */
+.contenedor-header {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center; /* Centra estrictamente los botones */
+  position: relative; /* Permite posicionar el logo de forma independiente */
+}
+
+.logo-amarillo {
+  margin: 0;
+  color: #ffca28; 
+  font-size: 2.4rem;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+  position: absolute; /* Saca el texto del flujo central */
+  left: 16px; /* Lo pega al extremo izquierdo del contenedor */
+}
+
+.nav-links {
+  display: flex;
+  gap: 24px; /* Aumenta la separación entre los botones */
+}
+
+.nav-link {
+  color: white;
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 1.1rem; /* Letra más grande */
+  padding: 12px 24px; /* Botones más altos y anchos */
+  border-radius: 8px; /* Bordes un poco más suaves */
+  background: rgba(255, 255, 255, 0.15);
+  transition: all 0.2s ease;
+}
+
+.nav-link:hover {
+  background: rgba(255, 255, 255, 0.25);
+  transform: translateY(-2px); /* Pequeño efecto de elevación al pasar el mouse */
+}
+
+.nav-link.active {
+  background: #ffca28; /* Fondo amarillo para la página actual */
+  color: var(--rojo-oscuro); /* Letra oscura para contrastar con el fondo amarillo */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}

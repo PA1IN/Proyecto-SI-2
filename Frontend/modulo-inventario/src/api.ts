@@ -39,3 +39,17 @@ export async function fetchProductos(): Promise<Producto[]> {
   }
   return (await res.json()) as Producto[];
 }
+
+
+const MOCK_BODEGAS: Bodega[] = [
+  { id_bodega: 1, nombre_bodega: 'Bodega Central Santiago', ubicacion_fisica: 'Av. Americo Vespucio 1500, Pudahuel' },
+  { id_bodega: 2, nombre_bodega: 'Bodega Coquimbo', ubicacion_fisica: 'Av. Costanera 2300, Coquimbo' },
+  { id_bodega: 3, nombre_bodega: 'Bodega La Serena', ubicacion_fisica: 'Av. Balmaceda 3100, La Serena' },
+  { id_bodega: 4, nombre_bodega: 'Bodega Antofagasta', ubicacion_fisica: 'Av. Pedro Aguirre Cerda 9800, Antofagasta' },
+];
+
+export async function fetchBodegas(): Promise<Bodega[]> {
+  // Simulamos el retraso de red
+  await new Promise((r) => setTimeout(r, 400));
+  return MOCK_BODEGAS;
+}
