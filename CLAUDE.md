@@ -9,7 +9,8 @@ Contexto y reglas de trabajo para retomar el proyecto en cualquier sesión. Resp
 - **Al terminar cada cambio**, dar un resumen breve: qué archivos se tocaron, qué se hizo y para qué. Proponer también un mensaje de commit.
 - **Antes de entregar**, correr en `Backend/`: `npm run lint`, `npm test`, `npm run test:e2e` y `npm run build`. Informar el resultado real, aunque falle.
 - **Instalar cada dependencia en el paso que la necesita**, para que el diff de `package.json` sea fácil de revisar.
-- **Rama de trabajo actual:** `fixes-previo-a-entidades`.
+- **Ramas:** `main` es la rama principal y se actualiza solo con PR. Cada sesión trabaja en una rama propia, creada desde `main` actualizada, con el nombre del usuario (`dazztyn`) o de la tarea. Nunca trabajar directo en `main`.
+- **Al mergear ramas de otros integrantes a `main`** (el back de `David-rama`, el frontend de `Rama-front`), actualizar este archivo: la sección "Estado de ramas", el plan y lo que cambie en el stack.
 - **Nunca escribir credenciales** (host, usuario o contraseña de la BD) en archivos versionados, en el chat ni en commits. Van solo en `.env`, que está en `.gitignore`.
 - **No crear tablas ni modificar la BD central sin que el equipo lo pida.** Es compartida con los demás grupos.
 
@@ -64,7 +65,7 @@ Contexto y reglas de trabajo para retomar el proyecto en cualquier sesión. Resp
 ## Stack
 
 - **Backend:** `Backend/`, con NestJS 12 (ESM, `"type": "module"`, imports con extensión `.js`), TypeScript 6, vitest + supertest y oxlint + prettier.
-- **Frontend:** React + Vite (puerto 5173). Todavía no existe en el repo.
+- **Frontend:** React + Vite (puerto 5173). En desarrollo en `Rama-front`; todavía no está en `main`.
 - **BD:** PostgreSQL en un proyecto nuevo de Neon (servicio en la nube), base `si2_22026`.
 - **Comunicación entre módulos:** HTTP/REST.
 
@@ -143,7 +144,7 @@ id_despacho → logistica, id_proveedor e id_oc → compras
 - **Sin `fecha_cierre`:** el tiempo entre reserva y despacho se calcula cruzando la `RESERVA` con el `EGRESO` del mismo `id_pedido`.
 - **Se eliminan `coleccion`, `edad_minima` y `tipo_construccion`** de `inv_producto`, para regirse por el dataset (Rebrickable/Kaggle).
 - **Sprint 2 sin FKs a otros módulos:** `id_empleado`, `id_pedido`, `id_devolucion`, `id_despacho`, `id_proveedor` e `id_oc` son `int` sin FK. Las FKs se agregan en el Sprint 3 con `ALTER TABLE`; hay que confirmar con cada grupo que sus PK sean `int`.
-- **Subtablas creadas y vacías (22-10-2026):** `inv_despachos_operario` e `inv_recepciones_compra` ya existen para que el esquema del módulo esté completo, pero sin datos de prueba: se llenan cuando Logística y Compras confirmen despachos y recepciones (Sprint 3). Esto justifica que tengan menos de 10 filas.
+- **Subtablas creadas y vacías (21-10-2026):** `inv_despachos_operario` e `inv_recepciones_compra` ya existen para que el esquema del módulo esté completo, pero sin datos de prueba: se llenan cuando Logística y Compras confirmen despachos y recepciones (Sprint 3). Esto justifica que tengan menos de 10 filas.
 
 ### Decisiones abiertas (no bloquean el DDL)
 
@@ -192,17 +193,29 @@ Backend/
 - Usar vistas SQL para los KPIs.
 - Usar baja lógica (`activo`), no borrado físico.
 
-## Plan inmediato: base del backend y schema propio (rama `fixes-previo-a-entidades`)
+## Estado de ramas (al 23-10-2026)
 
-Cada paso equivale a un commit, con revisión entre pasos. Los pasos 1 a 5 ya están hechos.
+| Rama | Contenido | Estado |
+| --- | --- | --- |
+| `main` | Pasos 1 a 6 del plan: config, setup-app, filtro de errores, health, Postgres local, DDL/DML y validación del DDL | Al día con `bd-local-prueba` (PR #6). Todavía sin ORM |
+| `David-rama` | ORM de `Pablo-Rama` (mergeado en ella con el PR #5) más correcciones: entidades sincronizadas con el DDL final, conexión SSL, e2e y dependencias; también `stock.controller` y `stock.service` | Pendiente de revisión y merge a `main`. Es el paso 7 |
+| `Pablo-Rama` | ORM original (TypeORM, entidades, reserva) | Integrada en `David-rama`; no se mergea aparte |
+| `Rama-front` | Frontend React + Vite | Pendiente de merge a `main` |
+| `config-base`, `fixes-previo-a-entidades`, `bd-local-prueba` | Pasos 1 a 6 | Ya mergeadas en `main`; no se usan más |
+
+La guía para integrar el ORM está en el documento [Integración del ORM de Pablo-Rama](https://claude.ai/artifact/4ZSVyWPoATe5FbbGRdCVE9). Revisar contra `David-rama` cuáles de sus tareas ya quedaron resueltas.
+
+## Plan inmediato: base del backend y schema propio
+
+Cada paso equivale a un commit, con revisión entre pasos. Los pasos 1 a 6 ya están en `main`.
 
 1. ✅ Configuración validada (`@nestjs/config` + class-validator) y `.env.example`.
 2. ✅ `setup-app.ts`: prefijo `/api/v1`, CORS, `ValidationPipe` y Swagger. Se elimina el controlador de ejemplo del scaffold.
 3. ✅ Filtro global de errores con un formato único.
 4. ✅ `GET /api/v1/health` (sin BD) y los e2e correspondientes.
 5. ✅ Postgres local con Docker (`docker-compose.yml`, misma versión mayor que Neon).
-6. DDL y DML del schema `inventario`, probados en local (6a: DDL y triggers; 6b: DML).
-7. TypeORM y conexión (local o Neon según el `.env`), con `/health` verificando la BD.
+6. ✅ DDL y DML del schema `inventario`, probados en local: 8 tablas (2 subtablas vacías hasta el Sprint 3), triggers de inmutabilidad, 120 productos de Rebrickable y `db/test/validar_ddl.sql`.
+7. TypeORM y conexión (local o Neon según el `.env`), con `/health` verificando la BD. **En curso en `David-rama`.**
 8. Auth simulado: JWT, guards, decoradores, roles provisionales y token de prueba solo en desarrollo.
 9. DTO de paginación.
 10. README en español.
