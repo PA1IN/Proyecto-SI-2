@@ -150,15 +150,46 @@ id_despacho → logistica, id_proveedor e id_oc → compras
 
 - **`DEVOLUCION`:** pendiente con Postventa si reingresa como disponible o queda en revisión.
 - **KPIs:** se definen más adelante con los datos que haya.
-- **Matriz de roles:** Jefe de Bodega, Operador, Marketing y Admin, con nombres alineados con RRHH.
+- **Roles:** propuesta definida (ver "Roles y permisos del módulo"); falta que RRHH confirme los nombres y el formato del JWT.
 - **Diagrama draw.io:** quitar las tildes de `tipo_operacion`, corregir la errata "inv_movimientos", cambiar "Hereda de" por "FK a", agregar `cantidad_minima` y quitar `coleccion`, `edad_minima` y `tipo_construccion`.
+
+## Roles y permisos del módulo (propuesta del 25-10-2026, por enviar a RRHH)
+
+RRHH gestiona el login y emite el JWT. Nuestro backend solo lee `id_empleado` y `rol` del token validado; el rol nunca viene del body.
+
+| Rol (valor exacto en el JWT) | Quién es | Qué hace en el módulo |
+| --- | --- | --- |
+| `JEFE_BODEGA` | Responsable del inventario | Todo: maestro de productos, ajustes, mínimos de stock y reportes |
+| `OPERADOR_BODEGA` | Trabajador de bodega | Operación diaria: registrar ingresos y consultar stock |
+| `CONSULTA` | Marketing u otras áreas | Solo lectura: catálogo, stock y reportes en unidades |
+| `ADMIN` | Administrador general del ERP (lo define RRHH) | Mismos permisos que `JEFE_BODEGA` en nuestros guards |
+
+| Acción | Endpoint (referencial) | Jefe / Admin | Operador | Consulta |
+| --- | --- | --- | --- | --- |
+| Ver productos, temas y bodegas | `GET /productos`, `/temas`, `/bodegas` | Sí | Sí | Sí |
+| Ver stock | `GET /stock`, `/stock/disponibilidad/:idProducto` | Sí | Sí | Sí |
+| Ver historial de movimientos | `GET /movimientos` | Sí | Sí | No |
+| Crear o editar producto, baja lógica | `POST/PATCH/DELETE /productos` | Sí | No | No |
+| Registrar ingreso | `POST /movimientos/ingreso` | Sí | Sí | No |
+| Registrar ajuste (conteo, merma, error) | `POST /movimientos/ajuste` | Sí | No | No |
+| Cambiar el stock mínimo por bodega | `PATCH /stock/...` | Sí | No | No |
+| Ver KPIs y alertas | `GET /reportes`, `/alertas` | Sí | No | Sí |
+
+- Las rutas son referenciales: se fijan al construir cada módulo (revisar las de `stock.controller` en `David-rama`).
+- **Integraciones sin rol humano:** reservar, liberar y confirmar despachos o recepciones lo invocan e-Commerce y Logística, no un empleado. Hace falta una credencial de servicio (por ejemplo, rol `SERVICIO` en un token emitido por RRHH, o una API key por módulo). Acordarlo con RRHH junto con los roles.
+- **Por confirmar con RRHH:**
+  - Nombres exactos de los roles y si un empleado puede tener más de uno (`rol` texto o `roles` arreglo).
+  - Claims del token: `id_empleado` (int, el mismo de su maestro), `rol` y `exp`.
+  - Firma: secreto compartido (HS256, `JWT_SECRET`) o clave pública (RS256), y cómo se distribuye.
+  - Endpoint de login y duración del token.
+- **Sugerencia abierta:** permitir que el Operador vea las alertas de stock bajo, porque es quien repone en bodega.
 
 ## Coordinación con otros equipos
 
 - **Todos:**
   - API con prefijo `/api/v1`, formato de error común, fechas ISO-8601 y montos en CLP enteros.
   - Los maestros ajenos se leen de la BD (solo lectura) y el estado de otro módulo se escribe solo vía su API.
-- **RRHH:** emisión del JWT (`id_empleado` + rol) y definición de los roles.
+- **RRHH:** login y emisión del JWT (`id_empleado` + rol). Enviarles la propuesta de "Roles y permisos del módulo" y la necesidad de una credencial de servicio para las integraciones.
 - **e-Commerce:** contrato para reservar, confirmar y liberar con `id_pedido`; cómo se enteran de los productos nuevos.
 - **Logística:** contenido de la confirmación de despacho y de recepción.
 - **Compras:** cómo reciben la alerta de stock bajo.
@@ -216,7 +247,7 @@ Cada paso equivale a un commit, con revisión entre pasos. Los pasos 1 a 6 ya es
 5. ✅ Postgres local con Docker (`docker-compose.yml`, misma versión mayor que Neon).
 6. ✅ DDL y DML del schema `inventario`, probados en local: 8 tablas (2 subtablas vacías hasta el Sprint 3), triggers de inmutabilidad, 120 productos de Rebrickable y `db/test/validar_ddl.sql`.
 7. TypeORM y conexión (local o Neon según el `.env`), con `/health` verificando la BD. **En curso en `David-rama`.**
-8. Auth simulado: JWT, guards, decoradores, roles provisionales y token de prueba solo en desarrollo.
+8. Auth simulado: JWT, guards, decoradores y los roles de "Roles y permisos del módulo" (`JEFE_BODEGA`, `OPERADOR_BODEGA`, `CONSULTA`, `ADMIN`), con un token de prueba por rol solo en desarrollo. Usar los mismos claims que se acuerden con RRHH, para que en el Sprint 3 solo cambie quién firma el token.
 9. DTO de paginación.
 10. README en español.
 
