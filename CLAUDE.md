@@ -10,7 +10,7 @@ Contexto y reglas de trabajo para retomar el proyecto en cualquier sesión. Resp
 - **Antes de entregar**, correr en `Backend/`: `npm run lint`, `npm test`, `npm run test:e2e` y `npm run build`. Informar el resultado real, aunque falle.
 - **Instalar cada dependencia en el paso que la necesita**, para que el diff de `package.json` sea fácil de revisar.
 - **Ramas:** `main` es la rama principal y se actualiza solo con PR. Cada sesión trabaja en una rama propia, creada desde `main` actualizada, con el nombre del usuario (`dazztyn`) o de la tarea. Nunca trabajar directo en `main`.
-- **Al mergear ramas de otros integrantes a `main`** (el back de `David-rama`, el frontend de `Rama-front`), actualizar este archivo: la sección "Estado de ramas", el plan y lo que cambie en el stack.
+- **Al mergear ramas de otros integrantes a `main`** (por ejemplo, el frontend de `Rama-front` o las ramas del bloque 3), actualizar este archivo: la sección "Estado de ramas", el plan y lo que cambie en el stack.
 - **Nunca escribir credenciales** (host, usuario o contraseña de la BD) en archivos versionados, en el chat ni en commits. Van solo en `.env`, que está en `.gitignore`.
 - **No crear tablas ni modificar la BD central sin que el equipo lo pida.** Es compartida con los demás grupos.
 
@@ -64,8 +64,8 @@ Contexto y reglas de trabajo para retomar el proyecto en cualquier sesión. Resp
 
 ## Stack
 
-- **Backend:** `Backend/`, con NestJS 12 (ESM, `"type": "module"`, imports con extensión `.js`), TypeScript 6, vitest + supertest y oxlint + prettier.
-- **Frontend:** React + Vite (puerto 5173). En desarrollo en `Rama-front`; todavía no está en `main`.
+- **Backend:** `Backend/`, con NestJS 12 (ESM, `"type": "module"`, imports con extensión `.js`), TypeScript 6, TypeORM 1.1 + `pg`, vitest + supertest y oxlint + prettier.
+- **Frontend:** React + Vite (puerto 5173) en `Frontend/modulo-inventario/`. En desarrollo en `Rama-front`; todavía no está en `main`. Usa datos simulados (`VITE_USE_MOCK`) y un proxy de Vite hacia `http://localhost:3000`.
 - **BD:** PostgreSQL en un proyecto nuevo de Neon (servicio en la nube), base `si2_22026`.
 - **Comunicación entre módulos:** HTTP/REST.
 
@@ -166,8 +166,8 @@ RRHH gestiona el login y emite el JWT. Nuestro backend solo lee `id_empleado` y 
 
 | Acción | Endpoint (referencial) | Jefe / Admin | Operador | Consulta |
 | --- | --- | --- | --- | --- |
-| Ver productos, temas y bodegas | `GET /productos`, `/temas`, `/bodegas` | Sí | Sí | Sí |
-| Ver stock | `GET /stock`, `/stock/disponibilidad/:idProducto` | Sí | Sí | Sí |
+| Ver productos, temas y bodegas | `GET /productos`, `/productos/temas`, `/bodegas` | Sí | Sí | Sí |
+| Ver stock | `GET /stock`, `/stock/:idProducto` | Sí | Sí | Sí |
 | Ver historial de movimientos | `GET /movimientos` | Sí | Sí | No |
 | Crear o editar producto, baja lógica | `POST/PATCH/DELETE /productos` | Sí | No | No |
 | Registrar ingreso | `POST /movimientos/ingreso` | Sí | Sí | No |
@@ -175,7 +175,7 @@ RRHH gestiona el login y emite el JWT. Nuestro backend solo lee `id_empleado` y 
 | Cambiar el stock mínimo por bodega | `PATCH /stock/...` | Sí | No | No |
 | Ver KPIs y alertas | `GET /reportes`, `/alertas` | Sí | No | Sí |
 
-- Las rutas son referenciales: se fijan al construir cada módulo (revisar las de `stock.controller` en `David-rama`).
+- Las rutas de lectura ya existen en `main` (`/productos`, `/productos/temas`, `/stock/:idProducto`); las demás se fijan al construir cada módulo (bloque 3).
 - **Integraciones sin rol humano:** reservar, liberar y confirmar despachos o recepciones lo invocan e-Commerce y Logística, no un empleado. Hace falta una credencial de servicio (por ejemplo, rol `SERVICIO` en un token emitido por RRHH, o una API key por módulo). Acordarlo con RRHH junto con los roles.
 - **Por confirmar con RRHH:**
   - Nombres exactos de los roles y si un empleado puede tener más de uno (`rol` texto o `roles` arreglo).
@@ -224,21 +224,20 @@ Backend/
 - Usar vistas SQL para los KPIs.
 - Usar baja lógica (`activo`), no borrado físico.
 
-## Estado de ramas (al 23-10-2026)
+## Estado de ramas (al 25-10-2026)
 
 | Rama | Contenido | Estado |
 | --- | --- | --- |
-| `main` | Pasos 1 a 6 del plan: config, setup-app, filtro de errores, health, Postgres local, DDL/DML y validación del DDL | Al día con `bd-local-prueba` (PR #6). Todavía sin ORM |
-| `David-rama` | ORM de `Pablo-Rama` (mergeado en ella con el PR #5) más correcciones: entidades sincronizadas con el DDL final, conexión SSL, e2e y dependencias; también `stock.controller` y `stock.service` | Pendiente de revisión y merge a `main`. Es el paso 7 |
-| `Pablo-Rama` | ORM original (TypeORM, entidades, reserva) | Integrada en `David-rama`; no se mergea aparte |
-| `Rama-front` | Frontend React + Vite | Pendiente de merge a `main` |
-| `config-base`, `fixes-previo-a-entidades`, `bd-local-prueba` | Pasos 1 a 6 | Ya mergeadas en `main`; no se usan más |
+| `main` | Pasos 1 a 7: config, setup-app, filtro de errores, health, Postgres local, DDL/DML, ORM con TypeORM y los endpoints `GET /productos`, `GET /productos/temas`, `POST /productos` y `GET /stock/:idProducto` | Al día con `David-rama` (PR #9) |
+| `Rama-front` | Frontend React + Vite (`Frontend/modulo-inventario/`): páginas de productos y bodegas, con datos simulados | Pendiente de merge a `main`. Su respuesta esperada de `GET /productos` no calza con la del backend (ver bloque 3) |
+| `David-rama`, `Pablo-Rama` | ORM y fixes de los bloques 1 y 2 | Ya mergeadas en `main` (PR #5 y #9); no se usan más |
+| `config-base`, `fixes-previo-a-entidades`, `bd-local-prueba`, `dazztyn` | Pasos 1 a 6 y documentación | Ya mergeadas en `main`; no se usan más |
 
-La guía para integrar el ORM está en el documento [Integración del ORM de Pablo-Rama](https://claude.ai/artifact/4ZSVyWPoATe5FbbGRdCVE9). Revisar contra `David-rama` cuáles de sus tareas ya quedaron resueltas.
+Pendiente aparte: un commit `chore(deps): npm audit fix` (sin `--force`) en su propia rama. Hay 3 vulnerabilidades altas en dependencias de producción (`body-parser` y `multer`, vía `@nestjs/platform-express`).
 
 ## Plan inmediato: base del backend y schema propio
 
-Cada paso equivale a un commit, con revisión entre pasos. Los pasos 1 a 6 ya están en `main`.
+Cada paso equivale a un commit, con revisión entre pasos. Los pasos 1 a 7 ya están en `main`.
 
 1. ✅ Configuración validada (`@nestjs/config` + class-validator) y `.env.example`.
 2. ✅ `setup-app.ts`: prefijo `/api/v1`, CORS, `ValidationPipe` y Swagger. Se elimina el controlador de ejemplo del scaffold.
@@ -246,12 +245,37 @@ Cada paso equivale a un commit, con revisión entre pasos. Los pasos 1 a 6 ya es
 4. ✅ `GET /api/v1/health` (sin BD) y los e2e correspondientes.
 5. ✅ Postgres local con Docker (`docker-compose.yml`, misma versión mayor que Neon).
 6. ✅ DDL y DML del schema `inventario`, probados en local: 8 tablas (2 subtablas vacías hasta el Sprint 3), triggers de inmutabilidad, 120 productos de Rebrickable y `db/test/validar_ddl.sql`.
-7. TypeORM y conexión (local o Neon según el `.env`), con `/health` verificando la BD. **En curso en `David-rama`.**
+7. ✅ TypeORM y conexión (local o Neon según el `.env`, con SSL validado). La verificación de la BD en `/health` pasó al bloque 3.
 8. Auth simulado: JWT, guards, decoradores y los roles de "Roles y permisos del módulo" (`JEFE_BODEGA`, `OPERADOR_BODEGA`, `CONSULTA`, `ADMIN`), con un token de prueba por rol solo en desarrollo. Usar los mismos claims que se acuerden con RRHH, para que en el Sprint 3 solo cambie quién firma el token.
 9. DTO de paginación.
 10. README en español.
 
-**Después:** ejecutar el DDL/DML en la BD del profesor (con `pg_dump` previo), entidades, los módulos de productos y movimientos (los 2 formularios de la demo del Sprint 2) y el frontend. Los pasos 8 y 9 pueden adelantarse mientras el equipo cierra las decisiones abiertas.
+**En paralelo:** ejecutar el DDL/DML en Neon desde DBeaver (en curso, con conexión sin `-pooler`). Después del bloque 3 siguen los pasos 8, 9 y 10, y el `npm audit fix`.
+
+## Bloque 3: lo que falta para la demo del Sprint 2
+
+Objetivo: los 2 formularios leyendo y escribiendo en la BD. Formulario 1, productos (crear y consultar). Formulario 2, movimientos (registrar un ingreso y ver el stock actualizado). Cada tarea va en su propia rama desde `main` y equivale a un commit o PR.
+
+| # | Rama sugerida | Tarea | Depende de |
+| --- | --- | --- | --- |
+| 3.1 | `health-bd` | `/health` ejecuta `SELECT 1` con el `DataSource`: 200 `{ status: 'ok', bd: 'ok' }`, o 503 si no hay conexión. Con e2e | — |
+| 3.2 | `entidades-movimiento` | Entidades `InvMovimiento` (`fecha_registro` como `timestamptz`), `InvDetalleMovimiento`, `InvDespachoOperario` e `InvRecepcionCompra`, alineadas con `db/ddl/01_tablas.sql` | — |
+| 3.3 | `ingreso-movimientos` | **Formulario 2.** `POST /movimientos/ingreso` con `RegistrarIngresoDto`. Valida que el producto exista y esté activo, y que la bodega exista (404). En una transacción: cabecera `INGRESO` `COMPLETADO`, detalle y stock con `INSERT ... ON CONFLICT (id_producto, id_bodega) DO UPDATE` que suma la cantidad. Responde 201 con el movimiento y su detalle. `id_empleado` sigue en el body con `// TODO paso 8: sacarlo del token`. Tests unitarios del servicio | 3.2 |
+| 3.4 | `ajuste-movimientos` | Opcional para la demo. `POST /movimientos/ajuste` con cantidad distinta de 0; si es negativa, `UPDATE` condicional y 409 si el stock quedaría bajo 0 | 3.2 |
+| 3.5 | `consultas` | `GET /bodegas` (el front ya lo usa con datos simulados). `GET /movimientos` (más recientes primero, `?limit=` con máximo 100 hasta el paso 9) y `GET /movimientos/:id` con su detalle | 3.2 (solo movimientos) |
+| 3.6 | `contrato-front` | El front espera en `GET /productos` el tema como texto y `cantidad_disponible`, `cantidad_reservada` y `stock_minimo` sumados por producto. Propuesta: `GET /stock` con ese resumen por producto (usando `cantidad_minima`) y que el front lo consuma; `GET /productos` queda como maestro. **Acordarlo con quien hace el front antes de programar** | — |
+| 3.7 | `catalogo-crud` | `GET /productos/:id` (404), `PATCH /productos/:id` (DTO con `PartialType` de `@nestjs/swagger`; SKU repetido da 409) y `DELETE /productos/:id` como baja lógica (`activo = false`) | — |
+| 3.8 | `tests-unitarios` | `calcularAsignacionReserva` (alcanza una bodega, reparte entre dos, empate por id menor, insuficiente da `null`) y `CatalogoService` (tema inexistente da 404, SKU duplicado da 409) | — |
+
+Orden sugerido: 3.2 primero, porque desbloquea 3.3, 3.4 y 3.5. Las tareas 3.1, 3.6, 3.7 y 3.8 se pueden repartir desde ya. Varias tocan `app.module.ts`, pero ahí los conflictos son de una línea.
+
+**Checklist de la demo:**
+
+- [ ] DDL y DML ejecutados en Neon (`GET /productos` devuelve 120 productos).
+- [ ] Formulario 1: crear un producto y verlo en el listado.
+- [ ] Formulario 2: registrar un ingreso y ver el stock actualizado en `GET /stock/:idProducto`.
+- [ ] Validaciones a mostrar: SKU duplicado (409), tema inexistente (404), campos inválidos (400) y stock negativo (409 en el ajuste o `CHECK` en la BD).
+- [ ] Frontend conectado al backend (`VITE_USE_MOCK=false`), o la demo por Swagger si no alcanza.
 
 ## Material de referencia
 
