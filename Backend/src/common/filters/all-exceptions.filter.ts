@@ -30,23 +30,19 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
     let message: string | string[] = 'Error interno del servidor';
-    let errorType = 'ERROR';
 
     if (exception instanceof HttpException) {
       status = exception.getStatus();
       const body = exception.getResponse();
       message = typeof body === 'string' ? body : ((body as any).message ?? exception.message);
-      errorType = HttpStatus[status] ?? 'ERROR';
     } else if (exception instanceof QueryFailedError) {
       const code = (exception.driverError as any)?.code;
       if (code === '23505' || code === 'P0001') { 
         status = HttpStatus.CONFLICT;
         message = 'Conflicto de datos o regla de negocio violada';
-        errorType = 'CONFLICT';
       } else if (code === '23503' || code === '23514') {
         status = HttpStatus.BAD_REQUEST;
         message = 'Datos referenciados inválidos o restricción fallida';
-        errorType = 'BAD_REQUEST';
       }
       this.logger.warn(`Database Error [${code}]: ${exception.message}`);
     } else {

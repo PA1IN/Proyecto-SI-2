@@ -43,14 +43,15 @@ export class StockRepository {
       .createQueryBuilder()
       .update(InvStockBodega)
       .set({
-        cantidad_disponible: () => `cantidad_disponible - ${cantidad}`,
-        cantidad_reservada: () => `cantidad_reservada + ${cantidad}`,
+        cantidad_disponible: () => 'cantidad_disponible - :cantidad',
+        cantidad_reservada: () => 'cantidad_reservada + :cantidad',
       })
+      .setParameter('cantidad', cantidad)
       .where('id_producto = :idProducto AND id_bodega = :idBodega', {
         idProducto,
         idBodega,
       })
-      .andWhere('cantidad_disponible >= :cantidad', { cantidad })
+      .andWhere('cantidad_disponible >= :cantidad')
       .execute();
 
     return (result.affected ?? 0) > 0;

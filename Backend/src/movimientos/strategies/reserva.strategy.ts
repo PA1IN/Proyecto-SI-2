@@ -10,13 +10,9 @@ export class ReservaStrategy implements MovimientoStrategy {
   constructor(private readonly stockRepo: StockRepository) {}
 
   async ejecutar(context: MovimientoContext, manager: EntityManager): Promise<void> {
-    const bodegas = await manager.getRepository('InvStockBodega')
-      .createQueryBuilder('s')
-      .setLock('pessimistic_write')
-      .where('s.id_producto = :id', { id: context.idProducto })
-      .getMany();
+    const bodegas = await this.stockRepo.findBodegasConLockParaReserva(context.idProducto, manager);
 
-    const asignaciones = calcularAsignacionReserva(bodegas as any, context.cantidad);
+    const asignaciones = calcularAsignacionReserva(bodegas, context.cantidad);
     
     if (!asignaciones) {
       throw new ConflictException('Stock insuficiente para cubrir la reserva completa');
