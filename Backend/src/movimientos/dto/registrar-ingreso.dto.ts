@@ -1,4 +1,4 @@
-import { IsInt, IsNotEmpty, Min, IsPositive } from "class-validator";
+import { IsInt, IsNotEmpty, IsPositive } from "class-validator";
 import { ApiProperty } from "@nestjs/swagger";
 
 export class RegistrarIngresoDto {
