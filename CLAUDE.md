@@ -9,7 +9,8 @@ Contexto y reglas de trabajo para retomar el proyecto en cualquier sesión. Resp
 - **Al terminar cada cambio**, dar un resumen breve: qué archivos se tocaron, qué se hizo y para qué. Proponer también un mensaje de commit.
 - **Antes de entregar**, correr en `Backend/`: `npm run lint`, `npm test`, `npm run test:e2e` y `npm run build`. Informar el resultado real, aunque falle.
 - **Instalar cada dependencia en el paso que la necesita**, para que el diff de `package.json` sea fácil de revisar.
-- **Rama de trabajo actual:** `fixes-previo-a-entidades`.
+- **Ramas:** `main` es la rama principal y se actualiza solo con PR. Cada sesión trabaja en una rama propia, creada desde `main` actualizada, con el nombre del usuario (`dazztyn`) o de la tarea. Nunca trabajar directo en `main`.
+- **Al mergear ramas de otros integrantes a `main`** (el back de `David-rama`, el frontend de `Rama-front`), actualizar este archivo: la sección "Estado de ramas", el plan y lo que cambie en el stack.
 - **Nunca escribir credenciales** (host, usuario o contraseña de la BD) en archivos versionados, en el chat ni en commits. Van solo en `.env`, que está en `.gitignore`.
 - **No crear tablas ni modificar la BD central sin que el equipo lo pida.** Es compartida con los demás grupos.
 
@@ -64,7 +65,7 @@ Contexto y reglas de trabajo para retomar el proyecto en cualquier sesión. Resp
 ## Stack
 
 - **Backend:** `Backend/`, con NestJS 12 (ESM, `"type": "module"`, imports con extensión `.js`), TypeScript 6, vitest + supertest y oxlint + prettier.
-- **Frontend:** React + Vite (puerto 5173). Todavía no existe en el repo.
+- **Frontend:** React + Vite (puerto 5173). En desarrollo en `Rama-front`; todavía no está en `main`.
 - **BD:** PostgreSQL en un proyecto nuevo de Neon (servicio en la nube), base `si2_22026`.
 - **Comunicación entre módulos:** HTTP/REST.
 
@@ -143,21 +144,52 @@ id_despacho → logistica, id_proveedor e id_oc → compras
 - **Sin `fecha_cierre`:** el tiempo entre reserva y despacho se calcula cruzando la `RESERVA` con el `EGRESO` del mismo `id_pedido`.
 - **Se eliminan `coleccion`, `edad_minima` y `tipo_construccion`** de `inv_producto`, para regirse por el dataset (Rebrickable/Kaggle).
 - **Sprint 2 sin FKs a otros módulos:** `id_empleado`, `id_pedido`, `id_devolucion`, `id_despacho`, `id_proveedor` e `id_oc` son `int` sin FK. Las FKs se agregan en el Sprint 3 con `ALTER TABLE`; hay que confirmar con cada grupo que sus PK sean `int`.
-- **Subtablas creadas y vacías (22-10-2026):** `inv_despachos_operario` e `inv_recepciones_compra` ya existen para que el esquema del módulo esté completo, pero sin datos de prueba: se llenan cuando Logística y Compras confirmen despachos y recepciones (Sprint 3). Esto justifica que tengan menos de 10 filas.
+- **Subtablas creadas y vacías (21-10-2026):** `inv_despachos_operario` e `inv_recepciones_compra` ya existen para que el esquema del módulo esté completo, pero sin datos de prueba: se llenan cuando Logística y Compras confirmen despachos y recepciones (Sprint 3). Esto justifica que tengan menos de 10 filas.
 
 ### Decisiones abiertas (no bloquean el DDL)
 
 - **`DEVOLUCION`:** pendiente con Postventa si reingresa como disponible o queda en revisión.
 - **KPIs:** se definen más adelante con los datos que haya.
-- **Matriz de roles:** Jefe de Bodega, Operador, Marketing y Admin, con nombres alineados con RRHH.
+- **Roles:** propuesta definida (ver "Roles y permisos del módulo"); falta que RRHH confirme los nombres y el formato del JWT.
 - **Diagrama draw.io:** quitar las tildes de `tipo_operacion`, corregir la errata "inv_movimientos", cambiar "Hereda de" por "FK a", agregar `cantidad_minima` y quitar `coleccion`, `edad_minima` y `tipo_construccion`.
+
+## Roles y permisos del módulo (propuesta del 25-10-2026, por enviar a RRHH)
+
+RRHH gestiona el login y emite el JWT. Nuestro backend solo lee `id_empleado` y `rol` del token validado; el rol nunca viene del body.
+
+| Rol (valor exacto en el JWT) | Quién es | Qué hace en el módulo |
+| --- | --- | --- |
+| `JEFE_BODEGA` | Responsable del inventario | Todo: maestro de productos, ajustes, mínimos de stock y reportes |
+| `OPERADOR_BODEGA` | Trabajador de bodega | Operación diaria: registrar ingresos y consultar stock |
+| `CONSULTA` | Marketing u otras áreas | Solo lectura: catálogo, stock y reportes en unidades |
+| `ADMIN` | Administrador general del ERP (lo define RRHH) | Mismos permisos que `JEFE_BODEGA` en nuestros guards |
+
+| Acción | Endpoint (referencial) | Jefe / Admin | Operador | Consulta |
+| --- | --- | --- | --- | --- |
+| Ver productos, temas y bodegas | `GET /productos`, `/temas`, `/bodegas` | Sí | Sí | Sí |
+| Ver stock | `GET /stock`, `/stock/disponibilidad/:idProducto` | Sí | Sí | Sí |
+| Ver historial de movimientos | `GET /movimientos` | Sí | Sí | No |
+| Crear o editar producto, baja lógica | `POST/PATCH/DELETE /productos` | Sí | No | No |
+| Registrar ingreso | `POST /movimientos/ingreso` | Sí | Sí | No |
+| Registrar ajuste (conteo, merma, error) | `POST /movimientos/ajuste` | Sí | No | No |
+| Cambiar el stock mínimo por bodega | `PATCH /stock/...` | Sí | No | No |
+| Ver KPIs y alertas | `GET /reportes`, `/alertas` | Sí | No | Sí |
+
+- Las rutas son referenciales: se fijan al construir cada módulo (revisar las de `stock.controller` en `David-rama`).
+- **Integraciones sin rol humano:** reservar, liberar y confirmar despachos o recepciones lo invocan e-Commerce y Logística, no un empleado. Hace falta una credencial de servicio (por ejemplo, rol `SERVICIO` en un token emitido por RRHH, o una API key por módulo). Acordarlo con RRHH junto con los roles.
+- **Por confirmar con RRHH:**
+  - Nombres exactos de los roles y si un empleado puede tener más de uno (`rol` texto o `roles` arreglo).
+  - Claims del token: `id_empleado` (int, el mismo de su maestro), `rol` y `exp`.
+  - Firma: secreto compartido (HS256, `JWT_SECRET`) o clave pública (RS256), y cómo se distribuye.
+  - Endpoint de login y duración del token.
+- **Sugerencia abierta:** permitir que el Operador vea las alertas de stock bajo, porque es quien repone en bodega.
 
 ## Coordinación con otros equipos
 
 - **Todos:**
   - API con prefijo `/api/v1`, formato de error común, fechas ISO-8601 y montos en CLP enteros.
   - Los maestros ajenos se leen de la BD (solo lectura) y el estado de otro módulo se escribe solo vía su API.
-- **RRHH:** emisión del JWT (`id_empleado` + rol) y definición de los roles.
+- **RRHH:** login y emisión del JWT (`id_empleado` + rol). Enviarles la propuesta de "Roles y permisos del módulo" y la necesidad de una credencial de servicio para las integraciones.
 - **e-Commerce:** contrato para reservar, confirmar y liberar con `id_pedido`; cómo se enteran de los productos nuevos.
 - **Logística:** contenido de la confirmación de despacho y de recepción.
 - **Compras:** cómo reciben la alerta de stock bajo.
@@ -192,18 +224,30 @@ Backend/
 - Usar vistas SQL para los KPIs.
 - Usar baja lógica (`activo`), no borrado físico.
 
-## Plan inmediato: base del backend y schema propio (rama `fixes-previo-a-entidades`)
+## Estado de ramas (al 23-10-2026)
 
-Cada paso equivale a un commit, con revisión entre pasos. Los pasos 1 a 5 ya están hechos.
+| Rama | Contenido | Estado |
+| --- | --- | --- |
+| `main` | Pasos 1 a 6 del plan: config, setup-app, filtro de errores, health, Postgres local, DDL/DML y validación del DDL | Al día con `bd-local-prueba` (PR #6). Todavía sin ORM |
+| `David-rama` | ORM de `Pablo-Rama` (mergeado en ella con el PR #5) más correcciones: entidades sincronizadas con el DDL final, conexión SSL, e2e y dependencias; también `stock.controller` y `stock.service` | Pendiente de revisión y merge a `main`. Es el paso 7 |
+| `Pablo-Rama` | ORM original (TypeORM, entidades, reserva) | Integrada en `David-rama`; no se mergea aparte |
+| `Rama-front` | Frontend React + Vite | Pendiente de merge a `main` |
+| `config-base`, `fixes-previo-a-entidades`, `bd-local-prueba` | Pasos 1 a 6 | Ya mergeadas en `main`; no se usan más |
+
+La guía para integrar el ORM está en el documento [Integración del ORM de Pablo-Rama](https://claude.ai/artifact/4ZSVyWPoATe5FbbGRdCVE9). Revisar contra `David-rama` cuáles de sus tareas ya quedaron resueltas.
+
+## Plan inmediato: base del backend y schema propio
+
+Cada paso equivale a un commit, con revisión entre pasos. Los pasos 1 a 6 ya están en `main`.
 
 1. ✅ Configuración validada (`@nestjs/config` + class-validator) y `.env.example`.
 2. ✅ `setup-app.ts`: prefijo `/api/v1`, CORS, `ValidationPipe` y Swagger. Se elimina el controlador de ejemplo del scaffold.
 3. ✅ Filtro global de errores con un formato único.
 4. ✅ `GET /api/v1/health` (sin BD) y los e2e correspondientes.
 5. ✅ Postgres local con Docker (`docker-compose.yml`, misma versión mayor que Neon).
-6. DDL y DML del schema `inventario`, probados en local (6a: DDL y triggers; 6b: DML).
-7. TypeORM y conexión (local o Neon según el `.env`), con `/health` verificando la BD.
-8. Auth simulado: JWT, guards, decoradores, roles provisionales y token de prueba solo en desarrollo.
+6. ✅ DDL y DML del schema `inventario`, probados en local: 8 tablas (2 subtablas vacías hasta el Sprint 3), triggers de inmutabilidad, 120 productos de Rebrickable y `db/test/validar_ddl.sql`.
+7. TypeORM y conexión (local o Neon según el `.env`), con `/health` verificando la BD. **En curso en `David-rama`.**
+8. Auth simulado: JWT, guards, decoradores y los roles de "Roles y permisos del módulo" (`JEFE_BODEGA`, `OPERADOR_BODEGA`, `CONSULTA`, `ADMIN`), con un token de prueba por rol solo en desarrollo. Usar los mismos claims que se acuerden con RRHH, para que en el Sprint 3 solo cambie quién firma el token.
 9. DTO de paginación.
 10. README en español.
 
