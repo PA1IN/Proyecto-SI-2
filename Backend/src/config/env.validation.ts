@@ -1,6 +1,16 @@
 import 'reflect-metadata';
-import { plainToInstance } from 'class-transformer';
-import { IsEnum, IsInt, IsUrl, Max, Min, validateSync } from 'class-validator';
+import { plainToInstance, Transform } from 'class-transformer';
+import {
+  IsEnum,
+  IsInt,
+  IsUrl,
+  Max,
+  Min,
+  validateSync,
+  IsBoolean,
+  IsNotEmpty,
+  IsString,
+} from 'class-validator';
 
 export enum Environment {
   Development = 'development',
@@ -20,6 +30,34 @@ export class EnvironmentVariables {
   // Origen del frontend (Vite) autorizado por CORS.
   @IsUrl({ require_tld: false, require_protocol: true })
   CORS_ORIGIN: string = 'http://localhost:5173';
+
+  @IsString()
+  @IsNotEmpty()
+  POSTGRES_HOST: string = 'localhost';
+
+  @IsBoolean()
+  // Se lee obj: con enableImplicitConversion, value ya llega como Boolean('false') === true.
+  @Transform(
+    ({ obj }) => obj.POSTGRES_SSL === 'true' || obj.POSTGRES_SSL === true,
+  )
+  POSTGRES_SSL: boolean = false;
+
+  @IsString()
+  @IsNotEmpty()
+  POSTGRES_USER: string = 'inventario';
+
+  @IsString()
+  @IsNotEmpty()
+  POSTGRES_PASSWORD: string = 'inventario';
+
+  @IsString()
+  @IsNotEmpty()
+  POSTGRES_DB: string = 'si2_local';
+
+  @IsInt()
+  @Min(1)
+  @Max(65535)
+  POSTGRES_PORT: number = 5432;
 }
 
 // Lo usa ConfigModule al arrancar: si una variable no es válida, la app no inicia.

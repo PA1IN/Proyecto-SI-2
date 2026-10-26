@@ -7,6 +7,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
+import { QueryFailedError } from 'typeorm';
 
 export interface ErrorResponse {
   statusCode: number;
@@ -29,14 +30,24 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
     let message: string | string[] = 'Error interno del servidor';
+
     if (exception instanceof HttpException) {
       status = exception.getStatus();
       const body = exception.getResponse();
       message =
         typeof body === 'string'
           ? body
-          : ((body as { message?: string | string[] }).message ??
-            exception.message);
+          : ((body as any).message ?? exception.message);
+    } else if (exception instanceof QueryFailedError) {
+      const code = (exception.driverError as any)?.code;
+      if (code === '23505' || code === 'P0001') {
+        status = HttpStatus.CONFLICT;
+        message = 'Conflicto de datos o regla de negocio violada';
+      } else if (code === '23503' || code === '23514') {
+        status = HttpStatus.BAD_REQUEST;
+        message = 'Datos referenciados inválidos o restricción fallida';
+      }
+      this.logger.warn(`Database Error [${code}]: ${exception.message}`);
     } else {
       this.logger.error(exception);
     }
