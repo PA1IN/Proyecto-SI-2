@@ -223,11 +223,13 @@ Backend/
 - No modificar tablas de otros equipos.
 - Usar vistas SQL para los KPIs.
 - Usar baja lógica (`activo`), no borrado físico.
+- Si dos entidades se importan mutuamente, el lado `@ManyToOne` declara el tipo como `Relation<T>`. Si no, en ESM la app compilada se cae al iniciar (`Cannot access 'X' before initialization`). Vitest no detecta este error: hay que probar con `npm run build` y arrancar la app.
 
-## Estado de ramas (al 25-10-2026)
+## Estado de ramas (al 26-10-2026)
 
 | Rama | Contenido | Estado |
 | --- | --- | --- |
+| `faltante-para-sprint2` | Bloque 3, un commit por tarea. Hecha: 3.2 | En curso. Sigue la 3.3 |
 | `main` | Pasos 1 a 7: config, setup-app, filtro de errores, health, Postgres local, DDL/DML, ORM con TypeORM y los endpoints `GET /productos`, `GET /productos/temas`, `POST /productos` y `GET /stock/:idProducto` | Al día con `David-rama` (PR #9) |
 | `Rama-front` | Frontend React + Vite (`Frontend/modulo-inventario/`): páginas de productos y bodegas, con datos simulados | Pendiente de merge a `main`. Su respuesta esperada de `GET /productos` no calza con la del backend (ver bloque 3) |
 | `David-rama`, `Pablo-Rama` | ORM y fixes de los bloques 1 y 2 | Ya mergeadas en `main` (PR #5 y #9); no se usan más |
@@ -250,7 +252,7 @@ Cada paso equivale a un commit, con revisión entre pasos. Los pasos 1 a 7 ya es
 9. DTO de paginación.
 10. README en español.
 
-**En paralelo:** ejecutar el DDL/DML en Neon desde DBeaver (en curso, con conexión sin `-pooler`). Después del bloque 3 siguen los pasos 8, 9 y 10, y el `npm audit fix`.
+**En paralelo:** ejecutar el DDL/DML en Neon desde DBeaver, con conexión sin `-pooler`. **Al 26-10-2026, el schema `inventario` en Neon sigue vacío**: hasta que se ejecute, el backend con el `.env` de Neon falla incluso en `GET /productos`. Mientras tanto, desarrollar y probar con el Postgres local. Después del bloque 3 siguen los pasos 8, 9 y 10, y el `npm audit fix`.
 
 ## Bloque 3: lo que falta para la demo del Sprint 2
 
@@ -259,7 +261,7 @@ Objetivo: los 2 formularios leyendo y escribiendo en la BD. Formulario 1, produc
 | # | Rama sugerida | Tarea | Depende de |
 | --- | --- | --- | --- |
 | 3.1 | `health-bd` | `/health` ejecuta `SELECT 1` con el `DataSource`: 200 `{ status: 'ok', bd: 'ok' }`, o 503 si no hay conexión. Con e2e | — |
-| 3.2 | `entidades-movimiento` | Entidades `InvMovimiento` (`fecha_registro` como `timestamptz`), `InvDetalleMovimiento`, `InvDespachoOperario` e `InvRecepcionCompra`, alineadas con `db/ddl/01_tablas.sql` | — |
+| 3.2 ✅ | `entidades-movimiento` | Entidades `InvMovimiento` (`fecha_registro` como `timestamptz`), `InvDetalleMovimiento`, `InvDespachoOperario` e `InvRecepcionCompra`, alineadas con `db/ddl/01_tablas.sql` | — |
 | 3.3 | `ingreso-movimientos` | **Formulario 2.** `POST /movimientos/ingreso` con `RegistrarIngresoDto`. Valida que el producto exista y esté activo, y que la bodega exista (404). En una transacción: cabecera `INGRESO` `COMPLETADO`, detalle y stock con `INSERT ... ON CONFLICT (id_producto, id_bodega) DO UPDATE` que suma la cantidad. Responde 201 con el movimiento y su detalle. `id_empleado` sigue en el body con `// TODO paso 8: sacarlo del token`. Tests unitarios del servicio | 3.2 |
 | 3.4 | `ajuste-movimientos` | Opcional para la demo. `POST /movimientos/ajuste` con cantidad distinta de 0; si es negativa, `UPDATE` condicional y 409 si el stock quedaría bajo 0 | 3.2 |
 | 3.5 | `consultas` | `GET /bodegas` (el front ya lo usa con datos simulados). `GET /movimientos` (más recientes primero, `?limit=` con máximo 100 hasta el paso 9) y `GET /movimientos/:id` con su detalle | 3.2 (solo movimientos) |
@@ -267,7 +269,7 @@ Objetivo: los 2 formularios leyendo y escribiendo en la BD. Formulario 1, produc
 | 3.7 | `catalogo-crud` | `GET /productos/:id` (404), `PATCH /productos/:id` (DTO con `PartialType` de `@nestjs/swagger`; SKU repetido da 409) y `DELETE /productos/:id` como baja lógica (`activo = false`) | — |
 | 3.8 | `tests-unitarios` | `calcularAsignacionReserva` (alcanza una bodega, reparte entre dos, empate por id menor, insuficiente da `null`) y `CatalogoService` (tema inexistente da 404, SKU duplicado da 409) | — |
 
-Orden sugerido: 3.2 primero, porque desbloquea 3.3, 3.4 y 3.5. Las tareas 3.1, 3.6, 3.7 y 3.8 se pueden repartir desde ya. Varias tocan `app.module.ts`, pero ahí los conflictos son de una línea.
+Orden sugerido: 3.2 primero, porque desbloquea 3.3, 3.4 y 3.5. Orden elegido en `faltante-para-sprint2`: 3.2 → 3.3 → 3.5 → 3.1 → 3.8 → 3.4 → 3.7 (la 3.6 queda para después). Las tareas 3.1, 3.6, 3.7 y 3.8 se pueden repartir desde ya. Varias tocan `app.module.ts`, pero ahí los conflictos son de una línea.
 
 **Checklist de la demo:**
 
