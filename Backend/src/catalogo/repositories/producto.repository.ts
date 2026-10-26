@@ -14,7 +14,7 @@ export class ProductoRepository {
   async findAllActivos(): Promise<InvProducto[]> {
     return this.ormRepo.find({
       where: { activo: true },
-      relations: { tema: true }, 
+      relations: { tema: true },
       order: { id_producto: 'ASC' },
     });
   }

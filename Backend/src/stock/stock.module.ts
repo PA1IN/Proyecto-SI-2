@@ -10,6 +10,6 @@ import { StockService } from './stock.service.js';
   imports: [TypeOrmModule.forFeature([InvBodegas, InvStockBodega])],
   controllers: [StockController],
   providers: [StockRepository, StockService],
-  exports: [StockRepository, StockService], 
+  exports: [StockRepository, StockService],
 })
 export class StockModule {}

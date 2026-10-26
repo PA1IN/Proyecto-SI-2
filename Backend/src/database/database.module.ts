@@ -17,7 +17,9 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
         schema: 'inventario',
         autoLoadEntities: true,
         synchronize: false,
-        ssl: config.get<boolean>('POSTGRES_SSL') ? { rejectUnauthorized: false } : false,
+        ssl: config.get<boolean>('POSTGRES_SSL')
+          ? { rejectUnauthorized: false }
+          : false,
       }),
     }),
   ],

@@ -3,5 +3,5 @@ export interface MovimientoContext {
   cantidad: number;
   idPedido?: number;
   idBodega?: number;
-  motivo?: string;   
+  motivo?: string;
 }

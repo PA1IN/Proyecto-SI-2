@@ -34,10 +34,13 @@ export class AllExceptionsFilter implements ExceptionFilter {
     if (exception instanceof HttpException) {
       status = exception.getStatus();
       const body = exception.getResponse();
-      message = typeof body === 'string' ? body : ((body as any).message ?? exception.message);
+      message =
+        typeof body === 'string'
+          ? body
+          : ((body as any).message ?? exception.message);
     } else if (exception instanceof QueryFailedError) {
       const code = (exception.driverError as any)?.code;
-      if (code === '23505' || code === 'P0001') { 
+      if (code === '23505' || code === 'P0001') {
         status = HttpStatus.CONFLICT;
         message = 'Conflicto de datos o regla de negocio violada';
       } else if (code === '23503' || code === '23514') {

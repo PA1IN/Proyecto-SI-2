@@ -1,7 +1,16 @@
 import 'reflect-metadata';
 import { plainToInstance, Transform } from 'class-transformer';
-import { IsEnum, IsInt, IsUrl, Max, Min, validateSync, IsBoolean, IsNotEmpty, IsString } from 'class-validator';
-
+import {
+  IsEnum,
+  IsInt,
+  IsUrl,
+  Max,
+  Min,
+  validateSync,
+  IsBoolean,
+  IsNotEmpty,
+  IsString,
+} from 'class-validator';
 
 export enum Environment {
   Development = 'development',
@@ -28,7 +37,9 @@ export class EnvironmentVariables {
 
   @IsBoolean()
   // Se lee obj: con enableImplicitConversion, value ya llega como Boolean('false') === true.
-  @Transform(({ obj }) => obj.POSTGRES_SSL === 'true' || obj.POSTGRES_SSL === true)
+  @Transform(
+    ({ obj }) => obj.POSTGRES_SSL === 'true' || obj.POSTGRES_SSL === true,
+  )
   POSTGRES_SSL: boolean = false;
 
   @IsString()
@@ -47,7 +58,6 @@ export class EnvironmentVariables {
   @Min(1)
   @Max(65535)
   POSTGRES_PORT: number = 5432;
-
 }
 
 // Lo usa ConfigModule al arrancar: si una variable no es válida, la app no inicia.

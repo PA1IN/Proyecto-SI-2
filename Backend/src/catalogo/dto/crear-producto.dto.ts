@@ -7,7 +7,10 @@ export class CrearProductoDto {
   @Min(1)
   id_tema: number;
 
-  @ApiProperty({ example: '75192-1', description: 'SKU único (número de set LEGO)' })
+  @ApiProperty({
+    example: '75192-1',
+    description: 'SKU único (número de set LEGO)',
+  })
   @IsString()
   @IsNotEmpty()
   @MaxLength(20)
@@ -23,5 +26,4 @@ export class CrearProductoDto {
   @IsInt()
   @Min(0)
   cant_piezas: number;
-
 }

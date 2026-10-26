@@ -9,12 +9,12 @@ import { MovimientosModule } from './movimientos/movimientos.module.js';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true, validate }), 
+    ConfigModule.forRoot({ isGlobal: true, validate }),
     HealthModule,
     DatabaseModule,
     CatalogoModule,
     StockModule,
-    MovimientosModule
+    MovimientosModule,
   ],
 })
 export class AppModule {}

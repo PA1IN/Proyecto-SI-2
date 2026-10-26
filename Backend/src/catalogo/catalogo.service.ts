@@ -1,4 +1,8 @@
-import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  ConflictException,
+  NotFoundException,
+} from '@nestjs/common';
 import { ProductoRepository } from './repositories/producto.repository.js';
 import { TemaRepository } from './repositories/tema.repository.js';
 import { InvProducto } from './entities/inv-producto.entity.js';
@@ -28,7 +32,9 @@ export class CatalogoService {
 
     const skuDuplicado = await this.productoRepo.findBySku(dto.sku);
     if (skuDuplicado) {
-      throw new ConflictException(`Ya existe un producto con el SKU ${dto.sku}`);
+      throw new ConflictException(
+        `Ya existe un producto con el SKU ${dto.sku}`,
+      );
     }
 
     return this.productoRepo.crear(dto);
