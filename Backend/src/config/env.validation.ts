@@ -27,7 +27,8 @@ export class EnvironmentVariables {
   POSTGRES_HOST: string = 'localhost';
 
   @IsBoolean()
-  @Transform(({ value }) => value === 'true' || value === true)
+  // Se lee obj: con enableImplicitConversion, value ya llega como Boolean('false') === true.
+  @Transform(({ obj }) => obj.POSTGRES_SSL === 'true' || obj.POSTGRES_SSL === true)
   POSTGRES_SSL: boolean = false;
 
   @IsString()
