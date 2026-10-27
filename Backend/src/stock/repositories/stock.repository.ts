@@ -56,4 +56,20 @@ export class StockRepository {
 
     return (result.affected ?? 0) > 0;
   }
+
+  // Crea la fila de stock si el producto aún no está en la bodega.
+  async sumarDisponible(
+    idProducto: number,
+    idBodega: number,
+    cantidad: number,
+    manager: EntityManager,
+  ): Promise<void> {
+    await manager.query(
+      `INSERT INTO inventario.inv_stock_bodega (id_producto, id_bodega, cantidad_disponible)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (id_producto, id_bodega)
+       DO UPDATE SET cantidad_disponible = inv_stock_bodega.cantidad_disponible + EXCLUDED.cantidad_disponible`,
+      [idProducto, idBodega, cantidad],
+    );
+  }
 }

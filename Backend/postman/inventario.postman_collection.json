@@ -1,0 +1,164 @@
+{
+  "info": {
+    "name": "Inventario Lesgo (Sprint 2)",
+    "description": "Pruebas de la API del módulo de Inventario para la demo del Sprint 2, mientras el frontend no está listo. Importar en Postman (File > Import). Los cuerpos sirven igual para copiarlos en Swagger (/api/docs).\n\nOjo: los POST escriben en la BD del .env. En Neon un ingreso queda permanente (el trigger impide borrar movimientos) y un producto creado da 409 si se vuelve a enviar: cambiar el SKU antes de repetir.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000/api/v1" }
+  ],
+  "item": [
+    {
+      "name": "Lecturas",
+      "item": [
+        {
+          "name": "Health",
+          "request": { "method": "GET", "url": "{{baseUrl}}/health" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('200', () => pm.response.to.have.status(200));"] } }]
+        },
+        {
+          "name": "Listar productos",
+          "request": { "method": "GET", "url": "{{baseUrl}}/productos" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('200', () => pm.response.to.have.status(200));"] } }]
+        },
+        {
+          "name": "Listar temas",
+          "request": { "method": "GET", "url": "{{baseUrl}}/productos/temas" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('200', () => pm.response.to.have.status(200));"] } }]
+        },
+        {
+          "name": "Listar bodegas",
+          "request": { "method": "GET", "url": "{{baseUrl}}/bodegas" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('200', () => pm.response.to.have.status(200));"] } }]
+        },
+        {
+          "name": "Stock de un producto",
+          "request": { "method": "GET", "url": "{{baseUrl}}/stock/1" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('200', () => pm.response.to.have.status(200));"] } }]
+        },
+        {
+          "name": "Stock de producto inexistente (404)",
+          "request": { "method": "GET", "url": "{{baseUrl}}/stock/99999" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('404', () => pm.response.to.have.status(404));"] } }]
+        }
+      ]
+    },
+    {
+      "name": "Formulario 1: productos",
+      "item": [
+        {
+          "name": "Crear producto (201)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/productos",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id_tema\": 12,\n  \"sku\": \"10318-1\",\n  \"nombre_set\": \"Concorde\",\n  \"cant_piezas\": 2083\n}"
+            },
+            "description": "Escribe en la BD. Después, verlo en 'Listar productos'. Si se repite con el mismo SKU responde 409."
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('201', () => pm.response.to.have.status(201));"] } }]
+        },
+        {
+          "name": "SKU duplicado (409)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/productos",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id_tema\": 2,\n  \"sku\": \"75367-1\",\n  \"nombre_set\": \"SKU que ya existe\",\n  \"cant_piezas\": 100\n}"
+            }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('409', () => pm.response.to.have.status(409));"] } }]
+        },
+        {
+          "name": "Tema inexistente (404)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/productos",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id_tema\": 999,\n  \"sku\": \"99999-9\",\n  \"nombre_set\": \"Tema que no existe\",\n  \"cant_piezas\": 100\n}"
+            }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('404', () => pm.response.to.have.status(404));"] } }]
+        },
+        {
+          "name": "Campos inválidos (400)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/productos",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id_tema\": \"abc\",\n  \"sku\": \"\",\n  \"nombre_set\": \"Datos malos\",\n  \"cant_piezas\": -5,\n  \"precio\": 9990\n}"
+            },
+            "description": "Tema no numérico, SKU vacío, piezas negativas y un campo que no existe (precio)."
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('400', () => pm.response.to.have.status(400));"] } }]
+        }
+      ]
+    },
+    {
+      "name": "Formulario 2: ingreso de stock",
+      "item": [
+        {
+          "name": "Registrar ingreso (201)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/movimientos/ingreso",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id_empleado\": 1,\n  \"id_producto\": 1,\n  \"id_bodega\": 1,\n  \"cantidad\": 5\n}"
+            },
+            "description": "Escribe en la BD y es permanente (no se puede borrar el movimiento). Antes y después, revisar 'Stock de un producto' para ver la bodega 1 sumar 5."
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('201', () => pm.response.to.have.status(201));"] } }]
+        },
+        {
+          "name": "Producto inexistente (404)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/movimientos/ingreso",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id_empleado\": 1,\n  \"id_producto\": 99999,\n  \"id_bodega\": 1,\n  \"cantidad\": 5\n}"
+            }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('404', () => pm.response.to.have.status(404));"] } }]
+        },
+        {
+          "name": "Bodega inexistente (404)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/movimientos/ingreso",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id_empleado\": 1,\n  \"id_producto\": 1,\n  \"id_bodega\": 999,\n  \"cantidad\": 5\n}"
+            }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('404', () => pm.response.to.have.status(404));"] } }]
+        },
+        {
+          "name": "Cantidad no positiva (400)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/movimientos/ingreso",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id_empleado\": 1,\n  \"id_producto\": 1,\n  \"id_bodega\": 1,\n  \"cantidad\": 0\n}"
+            }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('400', () => pm.response.to.have.status(400));"] } }]
+        }
+      ]
+    }
+  ]
+}
