@@ -7,6 +7,12 @@ import { StockService } from './stock.service.js';
 export class StockController {
   constructor(private readonly stockService: StockService) {}
 
+  // Resumen por producto (todas las bodegas sumadas), para el listado del front en una sola request.
+  @Get()
+  async obtenerResumenStock() {
+    return this.stockService.obtenerResumenStock();
+  }
+
   @Get(':idProducto')
   async obtenerStockPorProducto(
     @Param('idProducto', ParseIntPipe) idProducto: number,
