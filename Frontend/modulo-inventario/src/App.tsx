@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, NavLink } from 'react-router-dom';
 import Productos from './Productos';
 import Bodegas from './Bodegas';
+import CrearProducto from './CrearProducto';
 
 export default function App() {
   return (
@@ -22,6 +23,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Productos />} />
         <Route path="/bodegas" element={<Bodegas />} />
+        <Route path="/productos/nuevo" element={<CrearProducto />} />
       </Routes>
     </BrowserRouter>
   );

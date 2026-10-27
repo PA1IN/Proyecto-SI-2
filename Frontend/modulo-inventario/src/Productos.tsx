@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { fetchProductos } from './api';
 import type { Producto } from './tipos';
+import { Link } from 'react-router-dom';
 
 const STOCK_MINIMO_POR_DEFECTO = 5;
 
@@ -50,6 +51,9 @@ export default function Productos() {
           <button className="boton" onClick={() => void cargar()} disabled={cargando}>
             {cargando ? 'Actualizando…' : 'Actualizar'}
           </button>
+          <Link to="/productos/nuevo" className="boton" style={{ textDecoration: 'none', background: '#047857' }}>
+            + Nuevo Producto
+          </Link>
         </div>
 
         {error && <p className="error">No se pudo cargar el inventario: {error}</p>}
