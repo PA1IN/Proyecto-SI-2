@@ -3,10 +3,8 @@ import { fetchProductos } from './api';
 import type { Producto } from './tipos';
 import { Link } from 'react-router-dom';
 
-const STOCK_MINIMO_POR_DEFECTO = 5;
+const esBajoStock = (p: Producto): boolean => p.bodegas_bajo_minimo > 0;
 
-const minimoDe = (p: Producto): number => p.stock_minimo ?? STOCK_MINIMO_POR_DEFECTO;
-const esBajoStock = (p: Producto): boolean => p.cantidad_disponible <= minimoDe(p);
 
 export default function Productos() {
   const [productos, setProductos] = useState<Producto[]>([]);
@@ -69,6 +67,7 @@ export default function Productos() {
                 <th className="num">Disponible</th>
                 <th className="num">Reservado</th>
                 <th className="num">Mínimo</th>
+                <th></th> {/* Nueva columna para el botón */}
               </tr>
             </thead>
             <tbody>
@@ -80,7 +79,24 @@ export default function Productos() {
                   <td className="num">{p.cant_piezas.toLocaleString('es-CL')}</td>
                   <td className="num stock">{p.cantidad_disponible}</td>
                   <td className="num">{p.cantidad_reservada}</td>
-                  <td className="num">{minimoDe(p)}</td>
+                  <td className="num">{p.stock_minimo}</td>
+                  <td style={{ textAlign: 'center' }}>
+                  <Link 
+                   to={`/productos/${p.id_producto}`} 
+                    style={{
+                    background: '#e9edf2',
+                    color: '#52606d',
+                    padding: '4px 10px',
+                    borderRadius: '4px',
+                    textDecoration: 'none',
+                    fontSize: '0.85rem',
+                    fontWeight: 600,
+                    display: 'inline-block'
+                  }}
+                  >
+                  Detalle
+                  </Link>
+                  </td>
                 </tr>
               ))}
               {!cargando && productos.length === 0 && !error && (

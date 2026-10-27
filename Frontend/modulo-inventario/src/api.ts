@@ -1,4 +1,4 @@
-import type { Producto, Bodega } from './tipos';
+import type { Producto, Bodega, DetalleStock } from './tipos';
 
 const USE_MOCK = import.meta.env.VITE_USE_MOCK !== 'false';
 
@@ -26,32 +26,50 @@ const MOCK: Producto[] = [
   })),
 ];
 
+
+
+
 export async function fetchProductos(): Promise<Producto[]> {
   if (USE_MOCK) {
     await new Promise((r) => setTimeout(r, 400));
     return MOCK;
   }
   
-  const res = await fetch('/api/v1/productos');
-  if (!res.ok) {
-    const body = (await res.json().catch(() => null)) as { message?: string | string[] } | null;
-    const msg = Array.isArray(body?.message) ? body.message.join(', ') : body?.message;
-    throw new Error(msg ?? `Error ${res.status}`);
+  // Hacemos ambas peticiones en paralelo para que sea súper rápido
+  const [resProductos, resStock] = await Promise.all([
+    fetch('/api/v1/productos'),
+    fetch('/api/v1/stock')
+  ]);
+
+  if (!resProductos.ok || !resStock.ok) {
+    throw new Error('Error al cargar datos del inventario');
   }
   
-  const data = await res.json();
+  const dataProductos = await resProductos.json();
+  const dataStock = await resStock.json();
   
-  return data.map((item: any) => ({
-    id_producto: item.id_producto,
-    sku: item.sku,
-    nombre_set: item.nombre_set,
-    tema: item.tema ? item.tema.nombre_tema : `Tema #${item.id_tema}`,
-    cant_piezas: item.cant_piezas,
-    cantidad_disponible: item.cantidad_disponible || 0,
-    cantidad_reservada: item.cantidad_reservada || 0,
-    stock_minimo: item.stock_minimo || 5,
-    activo: item.activo,
-  }));
+  // Convertimos el arreglo de stock en un "diccionario" (Map) para cruzarlo más fácil
+  const stockMap = new Map();
+  dataStock.forEach((item: any) => {
+    stockMap.set(item.id_producto, item);
+  });
+  
+return dataProductos.map((item: any) => {
+    const stockInfo = stockMap.get(item.id_producto) || {};
+
+    return {
+      id_producto: item.id_producto,
+      sku: item.sku,
+      nombre_set: item.nombre_set,
+      tema: item.tema ? item.tema.nombre_tema : `Tema #${item.id_tema}`,
+      cant_piezas: item.cant_piezas,
+      cantidad_disponible: stockInfo.cantidad_disponible || 0,
+      cantidad_reservada: stockInfo.cantidad_reservada || 0,
+      stock_minimo: stockInfo.cantidad_minima ?? 0, // Corrección: quitamos el 5 inventado
+      activo: item.activo,
+      bodegas_bajo_minimo: stockInfo.bodegas_bajo_minimo || 0, // Pasamos el dato del backend
+    };
+  });
 }
 
 const MOCK_BODEGAS: Bodega[] = [
@@ -82,3 +100,16 @@ export async function fetchBodegas(): Promise<Bodega[]> {
     ubicacion_fisica: item.ubicacion_fisica || 'Ubicación no especificada',
   }));
 }
+
+
+export async function fetchStockPorProducto(idProducto: number): Promise<DetalleStock[]> {
+  const res = await fetch(`/api/v1/stock/${idProducto}`);
+  
+  if (!res.ok) {
+    if (res.status === 404) return []; 
+    throw new Error(`Error al cargar el detalle de stock (${res.status})`);
+  }
+  
+  return res.json();
+}
+
