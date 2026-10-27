@@ -1,0 +1,160 @@
+* { box-sizing: border-box; }
+
+:root {
+  --rojo: #d92d20;
+  --rojo-oscuro: #b42318;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  background: #f5f6f8;
+  color: #1f2933;
+}
+.banner {
+  position: relative;
+  background: var(--rojo);
+  color: #fff;
+  padding: 28px 16px;
+}
+
+.banner h1 {
+  max-width: 1100px;
+  margin: 0 auto;
+  font-size: 1.9rem;
+  letter-spacing: 0.2px;
+}
+
+.banner::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% - 1px);
+  height: 15px;
+  background: var(--rojo);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 28 14'%3E%3Cpath d='M0 0H28L14 14Z'/%3E%3C/svg%3E") repeat-x 0 0 / 28px 15px;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 28 14'%3E%3Cpath d='M0 0H28L14 14Z'/%3E%3C/svg%3E") repeat-x 0 0 / 28px 15px;
+}
+
+.pagina {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 36px 16px 24px;
+}
+
+.barra {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.resumen { margin: 0; color: #52606d; font-size: 0.9rem; }
+.resumen-alerta { color: var(--rojo-oscuro); font-weight: 600; }
+
+.boton {
+  padding: 8px 18px;
+  border: none;
+  border-radius: 6px;
+  background: var(--rojo);
+  color: #fff;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+.boton:hover:not(:disabled) { background: var(--rojo-oscuro); }
+.boton:disabled { opacity: 0.6; cursor: progress; }
+
+.error {
+  padding: 10px 14px;
+  border-radius: 6px;
+  background: #fde8e8;
+  color: var(--rojo-oscuro);
+}
+
+.tabla-contenedor {
+  max-height: 70vh;
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid #d9dee5;
+  border-radius: 8px;
+}
+
+.tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+
+.tabla th,
+.tabla td {
+  padding: 10px 14px;
+  text-align: left;
+  border-bottom: 1px solid #eceff3;
+}
+
+.tabla thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #e9edf2;
+  font-weight: 600;
+}
+
+.num { text-align: right !important; font-variant-numeric: tabular-nums; }
+.fila-bajo td {
+  background: #fde8e8;
+  color: #8a1c14;
+}
+.fila-bajo .stock { font-weight: 700; }
+
+.vacio { text-align: center !important; color: #7b8794; padding: 24px !important; }
+
+
+/* --- NUEVOS ESTILOS DE CABECERA Y BOTONES --- */
+.contenedor-header {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center; /* Centra estrictamente los botones */
+  position: relative; /* Permite posicionar el logo de forma independiente */
+}
+
+.logo-amarillo {
+  margin: 0;
+  color: #ffca28; 
+  font-size: 2.4rem;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+  position: absolute; /* Saca el texto del flujo central */
+  left: 16px; /* Lo pega al extremo izquierdo del contenedor */
+}
+
+.nav-links {
+  display: flex;
+  gap: 24px; /* Aumenta la separación entre los botones */
+}
+
+.nav-link {
+  color: white;
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 1.1rem; /* Letra más grande */
+  padding: 12px 24px; /* Botones más altos y anchos */
+  border-radius: 8px; /* Bordes un poco más suaves */
+  background: rgba(255, 255, 255, 0.15);
+  transition: all 0.2s ease;
+}
+
+.nav-link:hover {
+  background: rgba(255, 255, 255, 0.25);
+  transform: translateY(-2px); /* Pequeño efecto de elevación al pasar el mouse */
+}
+
+.nav-link.active {
+  background: #ffca28; /* Fondo amarillo para la página actual */
+  color: var(--rojo-oscuro); /* Letra oscura para contrastar con el fondo amarillo */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
