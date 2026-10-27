@@ -1,4 +1,4 @@
-import type { Producto } from './tipos';
+import type { Producto, Bodega } from './tipos';
 
 const USE_MOCK = import.meta.env.VITE_USE_MOCK !== 'false';
 
@@ -31,15 +31,28 @@ export async function fetchProductos(): Promise<Producto[]> {
     await new Promise((r) => setTimeout(r, 400));
     return MOCK;
   }
+  
   const res = await fetch('/api/v1/productos');
   if (!res.ok) {
     const body = (await res.json().catch(() => null)) as { message?: string | string[] } | null;
     const msg = Array.isArray(body?.message) ? body.message.join(', ') : body?.message;
     throw new Error(msg ?? `Error ${res.status}`);
   }
-  return (await res.json()) as Producto[];
+  
+  const data = await res.json();
+  
+  return data.map((item: any) => ({
+    id_producto: item.id_producto,
+    sku: item.sku,
+    nombre_set: item.nombre_set,
+    tema: item.tema ? item.tema.nombre_tema : `Tema #${item.id_tema}`,
+    cant_piezas: item.cant_piezas,
+    cantidad_disponible: item.cantidad_disponible || 0,
+    cantidad_reservada: item.cantidad_reservada || 0,
+    stock_minimo: item.stock_minimo || 5,
+    activo: item.activo,
+  }));
 }
-
 
 const MOCK_BODEGAS: Bodega[] = [
   { id_bodega: 1, nombre_bodega: 'Bodega Central Santiago', ubicacion_fisica: 'Av. Americo Vespucio 1500, Pudahuel' },
@@ -49,7 +62,23 @@ const MOCK_BODEGAS: Bodega[] = [
 ];
 
 export async function fetchBodegas(): Promise<Bodega[]> {
-  // Simulamos el retraso de red
-  await new Promise((r) => setTimeout(r, 400));
-  return MOCK_BODEGAS;
+  if (USE_MOCK) {
+    await new Promise((r) => setTimeout(r, 400));
+    return MOCK_BODEGAS;
+  }
+  
+  const res = await fetch('/api/v1/bodegas');
+  if (!res.ok) {
+    const body = (await res.json().catch(() => null)) as { message?: string | string[] } | null;
+    const msg = Array.isArray(body?.message) ? body.message.join(', ') : body?.message;
+    throw new Error(msg ?? `Error ${res.status}`);
+  }
+  
+  const data = await res.json();
+  
+  return data.map((item: any) => ({
+    id_bodega: item.id_bodega,
+    nombre_bodega: item.nombre_bodega,
+    ubicacion_fisica: item.ubicacion_fisica || 'Ubicación no especificada',
+  }));
 }
