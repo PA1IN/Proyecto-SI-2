@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { fetchStockPorProducto } from './api';
-import type { DetalleStock } from './tipos';
+import { fetchProductos, fetchStockPorProducto } from './api';
+import type { DetalleStock, Producto } from './tipos';
 
 export default function DetalleProducto() {
   const { id } = useParams();
   const navigate = useNavigate();
   
+  const [producto, setProducto] = useState<Producto | null>(null);
   const [stockDetalle, setStockDetalle] = useState<DetalleStock[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -17,9 +18,13 @@ export default function DetalleProducto() {
         setCargando(true);
         const idNum = Number(id);
         
-        // Solo cargamos el detalle de stock usando el endpoint de tu compañero
-        const detalle = await fetchStockPorProducto(idNum);
+        const [detalle, productos] = await Promise.all([
+          fetchStockPorProducto(idNum),
+          fetchProductos(),
+        ]);
+
         setStockDetalle(detalle);
+        setProducto(productos.find((p) => p.id_producto === idNum) ?? null);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Error de conexión');
       } finally {
@@ -36,8 +41,17 @@ export default function DetalleProducto() {
   return (
     <main className="pagina">
       <div className="barra">
-        <h2 style={{ margin: 0 }}>Distribución en Bodegas (ID: {id})</h2>
-        <button className="boton" onClick={() => navigate('/')} style={{ background: '#52606d' }}>
+        <div className="barra-titulo">
+          <h2 style={{ margin: 0 }}>
+            {producto ? producto.nombre_set : `Distribución en Bodegas (ID: ${id})`}
+          </h2>
+          {producto && (
+            <p className="resumen">
+              SKU {producto.sku} · Tema {producto.tema}
+            </p>
+          )}
+        </div>
+        <button className="boton boton--secundario" onClick={() => navigate('/')}>
           Volver
         </button>
       </div>
@@ -69,7 +83,7 @@ export default function DetalleProducto() {
                     <td className="num stock" style={{ fontWeight: bajoMinimo ? 700 : 400 }}>{s.cantidad_disponible}</td>
                     <td className="num">{s.cantidad_reservada}</td>
                     <td className="num">{s.cantidad_minima}</td>
-                    <td style={{ fontWeight: 600, color: bajoMinimo ? '#b42318' : '#047857' }}>
+                    <td style={{ fontWeight: 600, color: bajoMinimo ? '#b42318' : '#61707f' }}>
                       {bajoMinimo ? 'Reabastecer' : 'OK'}
                     </td>
                   </tr>

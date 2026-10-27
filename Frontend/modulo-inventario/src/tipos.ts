@@ -18,6 +18,11 @@ export interface Bodega {
   ubicacion_fisica: string;
 }
 
+export interface Tema {
+  id_tema: number;
+  nombre_tema: string;
+}
+
 export interface DetalleStock {
   id_bodega: number;
   cantidad_disponible: number;

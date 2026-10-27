@@ -52,7 +52,12 @@ export default function IngresoStock() {
         throw new Error(msg || 'Error al registrar el ingreso de stock');
       }
 
-      navigate('/');
+      navigate('/', {
+        state: {
+          mensaje: 'Ingreso de stock registrado correctamente.',
+          idProducto: Number(idProducto),
+        },
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error de conexión');
     } finally {
@@ -64,7 +69,7 @@ export default function IngresoStock() {
     <main className="pagina">
       <div className="barra">
         <h2 style={{ margin: 0 }}>Registrar Ingreso de Stock</h2>
-        <button className="boton" onClick={() => navigate('/')} style={{ background: '#52606d' }}>
+        <button className="boton boton--secundario" onClick={() => navigate('/')}>
           Volver
         </button>
       </div>
@@ -134,7 +139,7 @@ export default function IngresoStock() {
             />
           </div>
 
-          <button type="submit" className="boton" disabled={guardando} style={{ width: '100%', background: '#047857' }}>
+          <button type="submit" className="boton boton--bloque" disabled={guardando}>
             {guardando ? 'Registrando...' : 'Confirmar Ingreso'}
           </button>
         </form>
