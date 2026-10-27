@@ -19,10 +19,19 @@ export default function Bodegas() {
   return (
     <main className="pagina">
       <div className="barra">
-        <p className="resumen">{bodegas.length} bodegas operativas</p>
-        <button className="boton" onClick={() => void cargar()} disabled={cargando}>
-          {cargando ? 'Actualizando…' : 'Actualizar'}
-        </button>
+        <div className="barra-titulo">
+          <h2>Bodegas</h2>
+          <p className="resumen">{bodegas.length} bodegas operativas</p>
+        </div>
+        <div className="barra-acciones">
+          <button
+            className="boton boton--secundario"
+            onClick={() => void cargar()}
+            disabled={cargando}
+          >
+            {cargando ? 'Actualizando…' : 'Actualizar'}
+          </button>
+        </div>
       </div>
 
       <div className="tabla-contenedor">

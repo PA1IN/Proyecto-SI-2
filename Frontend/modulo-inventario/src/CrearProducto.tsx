@@ -1,5 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { fetchTemas } from './api';
+import type { Tema } from './tipos';
 
 export default function CrearProducto() {
   const navigate = useNavigate();
@@ -9,8 +11,35 @@ export default function CrearProducto() {
   // Estados para el formulario
   const [sku, setSku] = useState('');
   const [nombreSet, setNombreSet] = useState('');
-  const [idTema, setIdTema] = useState(1);
+  const [idTema, setIdTema] = useState('');
   const [cantPiezas, setCantPiezas] = useState(0);
+
+  // Temas disponibles para el selector
+  const [temas, setTemas] = useState<Tema[]>([]);
+  const [cargandoTemas, setCargandoTemas] = useState(true);
+
+  useEffect(() => {
+    let activo = true;
+
+    fetchTemas()
+      .then((data) => {
+        if (!activo) return;
+        setTemas(data);
+        if (data.length > 0) setIdTema(String(data[0].id_tema));
+      })
+      .catch((err) => {
+        if (activo) {
+          setError(err instanceof Error ? err.message : 'No se pudieron cargar los temas');
+        }
+      })
+      .finally(() => {
+        if (activo) setCargandoTemas(false);
+      });
+
+    return () => {
+      activo = false;
+    };
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,8 +64,15 @@ export default function CrearProducto() {
         throw new Error(msg || 'Error al crear el producto');
       }
 
-      // Si tiene éxito, volvemos a la tabla principal
-      navigate('/');
+      const creado = (await res.json()) as { id_producto: number; nombre_set: string };
+
+      // Volvemos a la lista mostrando el aviso y la página donde quedó el producto.
+      navigate('/', {
+        state: {
+          mensaje: `Producto "${creado.nombre_set}" creado correctamente.`,
+          idProducto: creado.id_producto,
+        },
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error de conexión');
     } finally {
@@ -48,7 +84,7 @@ export default function CrearProducto() {
     <main className="pagina">
       <div className="barra">
         <h2 style={{ margin: 0 }}>Ingresar Nuevo Producto</h2>
-        <button className="boton" onClick={() => navigate('/')} style={{ background: '#52606d' }}>
+        <button className="boton boton--secundario" onClick={() => navigate('/')}>
           Volver
         </button>
       </div>
@@ -81,15 +117,24 @@ export default function CrearProducto() {
         </div>
 
         <div style={{ marginBottom: '16px' }}>
-          <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600 }}>ID del Tema</label>
-          <input 
-            type="number" 
-            value={idTema} 
-            onChange={(e) => setIdTema(Number(e.target.value))} 
-            min={1}
-            required 
-            style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }}
-          />
+          <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600 }}>Tema</label>
+          <select
+            value={idTema}
+            onChange={(e) => setIdTema(e.target.value)}
+            required
+            disabled={cargandoTemas}
+            style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc', background: '#fff' }}
+          >
+            {cargandoTemas && <option value="">Cargando temas…</option>}
+            {!cargandoTemas && temas.length === 0 && (
+              <option value="">Sin temas disponibles</option>
+            )}
+            {temas.map((tema) => (
+              <option key={tema.id_tema} value={tema.id_tema}>
+                {tema.nombre_tema}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div style={{ marginBottom: '24px' }}>
@@ -104,7 +149,11 @@ export default function CrearProducto() {
           />
         </div>
 
-        <button type="submit" className="boton" disabled={cargando} style={{ width: '100%' }}>
+        <button
+          type="submit"
+          className="boton boton--bloque"
+          disabled={cargando || cargandoTemas || temas.length === 0}
+        >
           {cargando ? 'Guardando...' : 'Crear Producto'}
         </button>
       </form>
