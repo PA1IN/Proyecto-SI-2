@@ -3,6 +3,7 @@ import { StockRepository } from './repositories/stock.repository.js';
 import { BodegaRepository } from './repositories/bodega.repository.js';
 import { InvStockBodega } from './entities/inv-stock-bodega.entity.js';
 import { InvBodegas } from './entities/inv-bodegas.entity.js';
+import { ResumenStock } from './interfaces/resumen-stock.interface.js';
 
 @Injectable()
 export class StockService {
@@ -13,6 +14,10 @@ export class StockService {
 
   async obtenerBodegas(): Promise<InvBodegas[]> {
     return this.bodegaRepo.findAll();
+  }
+
+  async obtenerResumenStock(): Promise<ResumenStock[]> {
+    return this.stockRepo.findResumenPorProducto();
   }
 
   async obtenerStockPorProducto(idProducto: number): Promise<InvStockBodega[]> {

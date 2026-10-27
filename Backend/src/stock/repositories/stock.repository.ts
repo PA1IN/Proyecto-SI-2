@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, EntityManager } from 'typeorm';
 import { InvStockBodega } from '../entities/inv-stock-bodega.entity.js';
+import { ResumenStock } from '../interfaces/resumen-stock.interface.js';
 
 @Injectable()
 export class StockRepository {
@@ -20,6 +21,22 @@ export class StockRepository {
       relations: { bodega: true },
       order: { id_bodega: 'ASC' },
     });
+  }
+
+  // Un producto activo sin filas de stock aparece con todo en 0. SUM devuelve bigint: se castea a int.
+  async findResumenPorProducto(): Promise<ResumenStock[]> {
+    return this.repo.query(
+      `SELECT p.id_producto,
+              COALESCE(SUM(s.cantidad_disponible), 0)::int AS cantidad_disponible,
+              COALESCE(SUM(s.cantidad_reservada), 0)::int AS cantidad_reservada,
+              COALESCE(SUM(s.cantidad_minima), 0)::int AS cantidad_minima,
+              COUNT(*) FILTER (WHERE s.cantidad_disponible < s.cantidad_minima)::int AS bodegas_bajo_minimo
+       FROM inventario.inv_producto p
+       LEFT JOIN inventario.inv_stock_bodega s ON s.id_producto = p.id_producto
+       WHERE p.activo
+       GROUP BY p.id_producto
+       ORDER BY p.id_producto`,
+    );
   }
 
   async findBodegasConLockParaReserva(
