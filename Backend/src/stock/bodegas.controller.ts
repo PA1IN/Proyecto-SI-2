@@ -9,6 +9,7 @@ export class BodegasController {
 
   @Get()
   async obtenerBodegas() {
+    //mem
     return this.stockService.obtenerBodegas();
   }
 }
