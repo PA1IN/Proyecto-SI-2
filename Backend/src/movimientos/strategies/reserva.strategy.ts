@@ -12,7 +12,7 @@ export class ReservaStrategy implements MovimientoStrategy {
   async ejecutar(
     context: MovimientoContext,
     manager: EntityManager,
-  ): Promise<void> {
+  ): Promise<any> {
     const bodegas = await this.stockRepo.findBodegasConLockParaReserva(
       context.idProducto,
       manager,
@@ -36,5 +36,7 @@ export class ReservaStrategy implements MovimientoStrategy {
       if (!exito)
         throw new ConflictException('Error de concurrencia al reservar stock');
     }
+
+    return asignaciones;
   }
 }
