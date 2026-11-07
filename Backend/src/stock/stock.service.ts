@@ -1,4 +1,9 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { StockRepository } from './repositories/stock.repository.js';
 import { BodegaRepository } from './repositories/bodega.repository.js';
 import { InvStockBodega } from './entities/inv-stock-bodega.entity.js';
@@ -35,26 +40,35 @@ export class StockService {
   async crearBodega(dto: CrearBodegaDto): Promise<InvBodegas> {
     const existe = await this.bodegaRepo.findByNombre(dto.nombre_bodega);
     if (existe) {
-      throw new ConflictException(`La bodega '${dto.nombre_bodega}' ya existe en el sistema`);      
+      throw new ConflictException(
+        `La bodega '${dto.nombre_bodega}' ya existe en el sistema`,
+      );
     }
     return this.bodegaRepo.crear(dto);
   }
 
-  async actualizarBodega(id: number, dto: ActualizarBodegaDto): Promise<InvBodegas> {
+  async actualizarBodega(
+    id: number,
+    dto: ActualizarBodegaDto,
+  ): Promise<InvBodegas> {
     // Sin campos, TypeORM lanza error al actualizar y saldría un 500.
     if (Object.values(dto).every((v) => v === undefined)) {
-      throw new BadRequestException('Debe enviar al menos un campo a actualizar');
+      throw new BadRequestException(
+        'Debe enviar al menos un campo a actualizar',
+      );
     }
 
     const bodega = await this.bodegaRepo.findById(id);
-    if(!bodega) {
+    if (!bodega) {
       throw new NotFoundException(`Bodega ${id} no encontrada en el sistema`);
     }
 
     if (dto.nombre_bodega && dto.nombre_bodega !== bodega.nombre_bodega) {
       const existe = await this.bodegaRepo.findByNombre(dto.nombre_bodega);
       if (existe) {
-        throw new ConflictException(`La bodega '${dto.nombre_bodega}' ya existe en el sistema`)
+        throw new ConflictException(
+          `La bodega '${dto.nombre_bodega}' ya existe en el sistema`,
+        );
       }
     }
 

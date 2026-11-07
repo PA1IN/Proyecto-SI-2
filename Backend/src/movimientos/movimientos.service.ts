@@ -1,4 +1,8 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { InvProducto } from '../catalogo/entities/inv-producto.entity.js';
 import { InvBodegas } from '../stock/entities/inv-bodegas.entity.js';
@@ -25,7 +29,9 @@ export class MovimientosService {
   async obtenerMovimientoPorId(id: number): Promise<InvMovimiento> {
     const mov = await this.movimientoRepo.findById(id);
     if (!mov) {
-      throw new NotFoundException(`Movimiento ${id} no encontrado en el sistema`);
+      throw new NotFoundException(
+        `Movimiento ${id} no encontrado en el sistema`,
+      );
     }
     return mov;
   }
@@ -55,19 +61,25 @@ export class MovimientosService {
         );
       }
 
-      const movimiento = await this.movimientoRepo.crearCabecera({
-        // TODO paso 8: sacarlo del token.
-        id_empleado: dto.id_empleado,
+      const movimiento = await this.movimientoRepo.crearCabecera(
+        {
+          // TODO paso 8: sacarlo del token.
+          id_empleado: dto.id_empleado,
           tipo_operacion: 'INGRESO',
           estado: 'COMPLETADO',
-      }, manager);
+        },
+        manager,
+      );
 
-      const detalle = await this.movimientoRepo.crearDetalle({
-        id_movimiento: movimiento.id_movimiento,
+      const detalle = await this.movimientoRepo.crearDetalle(
+        {
+          id_movimiento: movimiento.id_movimiento,
           id_producto: dto.id_producto,
           id_bodega: dto.id_bodega,
           cantidad: dto.cantidad,
-      }, manager);
+        },
+        manager,
+      );
 
       await this.stockRepo.sumarDisponible(
         dto.id_producto,
@@ -81,42 +93,64 @@ export class MovimientosService {
     });
   }
 
-
-
   async registrarAjuste(dto: RegistrarAjusteDto): Promise<InvMovimiento> {
     return this.dataSource.transaction(async (manager) => {
-      const producto = await manager.findOneBy(InvProducto, { id_producto: dto.id_producto });
+      const producto = await manager.findOneBy(InvProducto, {
+        id_producto: dto.id_producto,
+      });
       if (!producto || !producto.activo) {
         throw new NotFoundException('Producto Inválido');
       }
 
-      const bodegaExiste = await manager.existsBy(InvBodegas, { id_bodega: dto.id_bodega});
+      const bodegaExiste = await manager.existsBy(InvBodegas, {
+        id_bodega: dto.id_bodega,
+      });
       if (!bodegaExiste) {
         throw new NotFoundException('Bodega inválida');
       }
 
       if (dto.cantidad > 0) {
-        await this.stockRepo.sumarDisponible(dto.id_producto, dto.id_bodega, dto.cantidad, manager);
-      } else if (!(await this.stockRepo.restarDisponible(dto.id_producto, dto.id_bodega, -dto.cantidad, manager))) {
-        throw new ConflictException('Stock insuficiente para realizar el ajuste negativo');
+        await this.stockRepo.sumarDisponible(
+          dto.id_producto,
+          dto.id_bodega,
+          dto.cantidad,
+          manager,
+        );
+      } else if (
+        !(await this.stockRepo.restarDisponible(
+          dto.id_producto,
+          dto.id_bodega,
+          -dto.cantidad,
+          manager,
+        ))
+      ) {
+        throw new ConflictException(
+          'Stock insuficiente para realizar el ajuste negativo',
+        );
       }
 
-      const movimiento = await this.movimientoRepo.crearCabecera({
-        // TODO paso 8: sacarlo del token.
-        id_empleado: dto.id_empleado,
-        tipo_operacion: 'AJUSTE',
-        estado: 'COMPLETADO',
-      }, manager);
+      const movimiento = await this.movimientoRepo.crearCabecera(
+        {
+          // TODO paso 8: sacarlo del token.
+          id_empleado: dto.id_empleado,
+          tipo_operacion: 'AJUSTE',
+          estado: 'COMPLETADO',
+        },
+        manager,
+      );
 
-      const detalle = await this.movimientoRepo.crearDetalle({
-        id_movimiento: movimiento.id_movimiento,
-        id_producto: dto.id_producto,
-        id_bodega: dto.id_bodega,
-        cantidad: dto.cantidad,
-      }, manager);
+      const detalle = await this.movimientoRepo.crearDetalle(
+        {
+          id_movimiento: movimiento.id_movimiento,
+          id_producto: dto.id_producto,
+          id_bodega: dto.id_bodega,
+          cantidad: dto.cantidad,
+        },
+        manager,
+      );
 
       movimiento.detalles = [detalle];
       return movimiento;
-    })
+    });
   }
 }

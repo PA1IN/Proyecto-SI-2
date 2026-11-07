@@ -1,4 +1,12 @@
-import { Controller, Get, Param, ParseIntPipe, Post, Patch, Body } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Param,
+  ParseIntPipe,
+  Post,
+  Patch,
+  Body,
+} from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { StockService } from './stock.service.js';
 import { CrearBodegaDto } from './dto/crear-bodega.dto.js';
@@ -20,7 +28,10 @@ export class BodegasController {
   }
 
   @Patch(':id')
-  async actualizarBodega(@Param('id', ParseIntPipe) id: number, @Body() dto: ActualizarBodegaDto) {
+  async actualizarBodega(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: ActualizarBodegaDto,
+  ) {
     return this.stockService.actualizarBodega(id, dto);
   }
 }

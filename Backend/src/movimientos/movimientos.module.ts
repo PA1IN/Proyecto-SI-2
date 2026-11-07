@@ -22,6 +22,6 @@ import { MovimientoRepository } from './repositories/movimiento.repository.js';
   ],
   controllers: [MovimientosController],
   providers: [MovimientoRepository, MovimientosService, ReservaStrategy],
-  exports :[MovimientoRepository]
+  exports: [MovimientoRepository],
 })
 export class MovimientosModule {}

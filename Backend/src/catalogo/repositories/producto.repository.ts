@@ -32,10 +32,16 @@ export class ProductoRepository {
   }
 
   async findById(id_producto: number): Promise<InvProducto | null> {
-    return this.ormRepo.findOne({ where: {id_producto}, relations : { tema: true}});
+    return this.ormRepo.findOne({
+      where: { id_producto },
+      relations: { tema: true },
+    });
   }
 
-  async actualizar(id_producto: number, datos: Partial<InvProducto>): Promise<void> {
+  async actualizar(
+    id_producto: number,
+    datos: Partial<InvProducto>,
+  ): Promise<void> {
     await this.ormRepo.update(id_producto, datos);
   }
 }

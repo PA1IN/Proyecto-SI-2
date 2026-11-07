@@ -1,9 +1,15 @@
-import { Controller, Get, Post, Body, ParseIntPipe, Param } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  ParseIntPipe,
+  Param,
+} from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { MovimientosService } from './movimientos.service.js';
 import { RegistrarIngresoDto } from './dto/registrar-ingreso.dto.js';
 import { RegistrarAjusteDto } from './dto/registrar-ajuste.dto.js';
-
 
 @ApiTags('movimientos')
 @Controller('movimientos')
@@ -16,7 +22,7 @@ export class MovimientosController {
   }
 
   @Get(':id')
-  async obtenerMovimientoPorId(@Param('id', ParseIntPipe) id:number) {
+  async obtenerMovimientoPorId(@Param('id', ParseIntPipe) id: number) {
     return this.movimientosService.obtenerMovimientoPorId(id);
   }
 

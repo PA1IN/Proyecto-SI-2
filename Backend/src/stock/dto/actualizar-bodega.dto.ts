@@ -1,4 +1,4 @@
-import { PartialType } from "@nestjs/swagger";
-import { CrearBodegaDto } from "./crear-bodega.dto.js";
+import { PartialType } from '@nestjs/swagger';
+import { CrearBodegaDto } from './crear-bodega.dto.js';
 
-export class ActualizarBodegaDto extends PartialType(CrearBodegaDto) {} 
+export class ActualizarBodegaDto extends PartialType(CrearBodegaDto) {}

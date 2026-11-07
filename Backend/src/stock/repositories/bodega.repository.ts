@@ -19,18 +19,21 @@ export class BodegaRepository {
   }
 
   async findById(id_bodega: number): Promise<InvBodegas | null> {
-    return this.ormRepo.findOneBy({ id_bodega});
+    return this.ormRepo.findOneBy({ id_bodega });
   }
 
-  async findByNombre(nombre_bodega: string): Promise<InvBodegas | null>{
-    return this.ormRepo.findOneBy({nombre_bodega});
+  async findByNombre(nombre_bodega: string): Promise<InvBodegas | null> {
+    return this.ormRepo.findOneBy({ nombre_bodega });
   }
 
   async crear(datos: CrearBodegaDto): Promise<InvBodegas> {
     return this.ormRepo.save(this.ormRepo.create(datos));
   }
 
-  async actualizar(id_bodega:number, datos: ActualizarBodegaDto): Promise<void> {
+  async actualizar(
+    id_bodega: number,
+    datos: ActualizarBodegaDto,
+  ): Promise<void> {
     await this.ormRepo.update(id_bodega, datos);
   }
 }
