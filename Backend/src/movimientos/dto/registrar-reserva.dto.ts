@@ -19,7 +19,7 @@ export class RegistrarReservaDto {
 
     @ApiProperty({ example: 2 })
     @IsInt()
-    @IsNotEmpty()
+    @IsPositive()
     cantidad: number;
 
 }

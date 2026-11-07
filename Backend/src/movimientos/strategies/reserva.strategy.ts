@@ -2,6 +2,7 @@ import { Injectable, ConflictException } from '@nestjs/common';
 import { EntityManager } from 'typeorm';
 import { StockRepository } from '../../stock/repositories/stock.repository.js';
 import { calcularAsignacionReserva } from '../../stock/utils/greedy-allocation.util.js';
+import { AsignacionBodega } from '../../stock/interfaces/asignacion-bodega.interface.js';
 import { MovimientoContext } from '../interfaces/movimiento-context.interface.js';
 import { MovimientoStrategy } from '../interfaces/movimiento-strategy.interface.js';
 
@@ -12,7 +13,7 @@ export class ReservaStrategy implements MovimientoStrategy {
   async ejecutar(
     context: MovimientoContext,
     manager: EntityManager,
-  ): Promise<any> {
+  ): Promise<AsignacionBodega[]> {
     const bodegas = await this.stockRepo.findBodegasConLockParaReserva(
       context.idProducto,
       manager,

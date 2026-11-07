@@ -5,6 +5,7 @@ import { InvBodegas } from '../stock/entities/inv-bodegas.entity.js';
 import { StockRepository } from '../stock/repositories/stock.repository.js';
 import { InvMovimiento } from './entities/inv-movimiento.entity.js';
 import { RegistrarIngresoDto } from './dto/registrar-ingreso.dto.js';
+import { RegistrarAjusteDto } from './dto/registrar-ajuste.dto.js';
 import { ReservaStrategy } from './strategies/reserva.strategy.js';
 import { MovimientoRepository } from './repositories/movimiento.repository.js';
 
@@ -55,6 +56,7 @@ export class MovimientosService {
       }
 
       const movimiento = await this.movimientoRepo.crearCabecera({
+        // TODO paso 8: sacarlo del token.
         id_empleado: dto.id_empleado,
           tipo_operacion: 'INGRESO',
           estado: 'COMPLETADO',
@@ -81,7 +83,7 @@ export class MovimientosService {
 
 
 
-  async registrarAjuste(dto: RegistrarIngresoDto): Promise<InvMovimiento> {
+  async registrarAjuste(dto: RegistrarAjusteDto): Promise<InvMovimiento> {
     return this.dataSource.transaction(async (manager) => {
       const producto = await manager.findOneBy(InvProducto, { id_producto: dto.id_producto });
       if (!producto || !producto.activo) {
@@ -100,6 +102,7 @@ export class MovimientosService {
       }
 
       const movimiento = await this.movimientoRepo.crearCabecera({
+        // TODO paso 8: sacarlo del token.
         id_empleado: dto.id_empleado,
         tipo_operacion: 'AJUSTE',
         estado: 'COMPLETADO',
