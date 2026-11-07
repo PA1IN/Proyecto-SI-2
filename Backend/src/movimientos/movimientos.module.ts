@@ -8,6 +8,7 @@ import { InvRecepcionCompra } from './entities/inv-recepcion-compra.entity.js';
 import { ReservaStrategy } from './strategies/reserva.strategy.js';
 import { MovimientosController } from './movimientos.controller.js';
 import { MovimientosService } from './movimientos.service.js';
+import { MovimientoRepository } from './repositories/movimiento.repository.js';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { MovimientosService } from './movimientos.service.js';
     StockModule,
   ],
   controllers: [MovimientosController],
-  providers: [ReservaStrategy, MovimientosService],
+  providers: [MovimientoRepository, MovimientosService, ReservaStrategy],
+  exports: [MovimientoRepository],
 })
 export class MovimientosModule {}
