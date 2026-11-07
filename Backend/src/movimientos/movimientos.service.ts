@@ -93,11 +93,10 @@ export class MovimientosService {
         throw new NotFoundException('Bodega inválida');
       }
 
-      if (dto.cantidad < 0) {
-        const stock = await manager.findOneBy('inv_stock_bodega', { id_producto: dto.id_producto, id_bodega: dto.id_bodega});
-        if (!stock || (stock as any).cantidad_disponible < Math.abs(dto.cantidad)) {
-          throw new ConflictException('Stock insuficiente para realizar el ajuste negativo');
-        }        
+      if (dto.cantidad > 0) {
+        await this.stockRepo.sumarDisponible(dto.id_producto, dto.id_bodega, dto.cantidad, manager);
+      } else if (!(await this.stockRepo.restarDisponible(dto.id_producto, dto.id_bodega, -dto.cantidad, manager))) {
+        throw new ConflictException('Stock insuficiente para realizar el ajuste negativo');
       }
 
       const movimiento = await this.movimientoRepo.crearCabecera({
@@ -112,8 +111,6 @@ export class MovimientosService {
         id_bodega: dto.id_bodega,
         cantidad: dto.cantidad,
       }, manager);
-
-      await this.stockRepo.sumarDisponible(dto.id_producto, dto.id_bodega, dto.cantidad, manager);
 
       movimiento.detalles = [detalle];
       return movimiento;

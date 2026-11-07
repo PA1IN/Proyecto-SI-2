@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Injectable,
   ConflictException,
   NotFoundException,
@@ -42,6 +43,11 @@ export class CatalogoService {
   }
 
   async actualizarProducto(id: number, dto: ActualizarProductoDto): Promise<InvProducto> {
+    // Sin campos, TypeORM lanza error al actualizar y saldría un 500.
+    if (Object.values(dto).every((v) => v === undefined)) {
+      throw new BadRequestException('Debe enviar al menos un campo a actualizar');
+    }
+
     const producto = await this.productoRepo.findById(id);
     if (!producto) {
       throw new NotFoundException(`Producto ${id} no existe`);

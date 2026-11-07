@@ -74,6 +74,28 @@ export class StockRepository {
     return (result.affected ?? 0) > 0;
   }
 
+  // UPDATE condicional: si no hay fila o no alcanza, no afecta filas y devuelve false (409).
+  async restarDisponible(
+    idProducto: number,
+    idBodega: number,
+    cantidad: number,
+    manager: EntityManager,
+  ): Promise<boolean> {
+    const result = await this.getManager(manager)
+      .createQueryBuilder()
+      .update(InvStockBodega)
+      .set({ cantidad_disponible: () => 'cantidad_disponible - :cantidad' })
+      .setParameter('cantidad', cantidad)
+      .where('id_producto = :idProducto AND id_bodega = :idBodega', {
+        idProducto,
+        idBodega,
+      })
+      .andWhere('cantidad_disponible >= :cantidad')
+      .execute();
+
+    return (result.affected ?? 0) > 0;
+  }
+
   // Crea la fila de stock si el producto aún no está en la bodega.
   async sumarDisponible(
     idProducto: number,
