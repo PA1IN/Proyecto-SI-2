@@ -97,11 +97,20 @@ Todos van con el prefijo `/api/v1`.
 | `GET` | `/health` | Estado del servicio |
 | `GET` | `/productos` | Lista los productos activos, con su tema |
 | `GET` | `/productos/temas` | Lista los temas |
+| `GET` | `/productos/catalogo` | Productos activos con su tema y stock disponible total (para e-Commerce) |
+| `GET` | `/productos/:id` | Un producto con su tema y stock disponible total, aunque esté inactivo |
 | `POST` | `/productos` | Crea un producto |
+| `PATCH` | `/productos/:id` | Edita un producto |
+| `DELETE` | `/productos/:id` | Da de baja un producto (`activo = false`) |
 | `GET` | `/bodegas` | Lista las bodegas |
+| `POST` | `/bodegas` | Crea una bodega |
+| `PATCH` | `/bodegas/:id` | Edita una bodega |
 | `GET` | `/stock` | Resumen por producto: disponible, reservado y mínimo (sumados entre bodegas), y cuántas bodegas están bajo su mínimo |
 | `GET` | `/stock/:idProducto` | Stock de un producto en cada bodega |
+| `GET` | `/movimientos` | Historial: los 100 movimientos más recientes, con su detalle |
+| `GET` | `/movimientos/:id` | Un movimiento con su detalle |
 | `POST` | `/movimientos/ingreso` | Registra un ingreso de stock |
+| `POST` | `/movimientos/ajuste` | Registra un ajuste de stock (positivo o negativo; 409 si no alcanza) |
 
 ### Ejemplos de body
 
@@ -167,4 +176,4 @@ npm run build
 
 - **Sprint 3:** autenticación y roles con el JWT de RRHH, integración con e-Commerce, Logística, Compras y Postventa, y las FKs hacia sus tablas.
 - **Sprint 4:** 100 o más registros en una tabla crítica, KPIs y dashboard en Power BI.
-- Opcionales del Sprint 2: ajustes de stock, historial de movimientos, y edición y baja de productos.
+- Integración con e-Commerce: reserva, liberación y egreso por `id_pedido`.
