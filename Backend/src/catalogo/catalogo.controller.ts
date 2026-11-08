@@ -28,6 +28,18 @@ export class CatalogoController {
     return this.catalogoService.obtenerTemas();
   }
 
+  // Para e-Commerce: productos activos con su stock disponible total, en una sola request.
+  @Get('catalogo')
+  async obtenerCatalogoConStock() {
+    return this.catalogoService.obtenerCatalogoConStock();
+  }
+
+  // Va después de las rutas fijas ('temas', 'catalogo') para que no las capture.
+  @Get(':id')
+  async obtenerProducto(@Param('id', ParseIntPipe) id: number) {
+    return this.catalogoService.obtenerProducto(id);
+  }
+
   @Post()
   async crearProducto(@Body() dto: CrearProductoDto) {
     return this.catalogoService.crearProducto(dto);

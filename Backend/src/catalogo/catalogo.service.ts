@@ -10,6 +10,7 @@ import { InvProducto } from './entities/inv-producto.entity.js';
 import { InvTema } from './entities/inv-tema.entity.js';
 import { CrearProductoDto } from './dto/crear-producto.dto.js';
 import { ActualizarProductoDto } from './dto/actualizar-producto.dto.js';
+import { ProductoConStock } from './interfaces/producto-con-stock.interface.js';
 
 @Injectable()
 export class CatalogoService {
@@ -20,6 +21,18 @@ export class CatalogoService {
 
   async obtenerProductos(): Promise<InvProducto[]> {
     return this.productoRepo.findAllActivos();
+  }
+
+  async obtenerCatalogoConStock(): Promise<ProductoConStock[]> {
+    return this.productoRepo.findConStock();
+  }
+
+  async obtenerProducto(id: number): Promise<ProductoConStock> {
+    const [producto] = await this.productoRepo.findConStock(id);
+    if (!producto) {
+      throw new NotFoundException(`Producto ${id} no existe`);
+    }
+    return producto;
   }
 
   async obtenerTemas(): Promise<InvTema[]> {
