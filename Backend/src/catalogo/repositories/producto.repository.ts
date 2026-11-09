@@ -42,7 +42,7 @@ export class ProductoRepository {
   // Mismo formato que GET /productos más el stock total. Sin id: solo activos; con id: el producto aunque esté inactivo.
   async findConStock(id_producto?: number): Promise<ProductoConStock[]> {
     return this.ormRepo.query(
-      `SELECT p.id_producto, p.id_tema, p.sku, p.nombre_set, p.cant_piezas, p.activo,
+      `SELECT p.id_producto, p.id_tema, p.sku, p.nombre_set, p.cant_piezas, p.activo, p.url_imagen,
               json_build_object('id_tema', t.id_tema, 'nombre_tema', t.nombre_tema) AS tema,
               COALESCE(SUM(s.cantidad_disponible), 0)::int AS cantidad_disponible
        FROM inventario.inv_producto p

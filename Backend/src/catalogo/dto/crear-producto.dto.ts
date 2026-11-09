@@ -1,5 +1,13 @@
-import { IsInt, IsNotEmpty, IsString, MaxLength, Min } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import {
+  IsInt,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  IsUrl,
+  MaxLength,
+  Min,
+} from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CrearProductoDto {
   @ApiProperty({ example: 1, description: 'ID del tema de LEGO' })
@@ -26,4 +34,13 @@ export class CrearProductoDto {
   @IsInt()
   @Min(0)
   cant_piezas: number;
+
+  @ApiPropertyOptional({
+    example: 'https://cdn.rebrickable.com/media/sets/75192-1.jpg',
+    description: 'URL de la imagen (Rebrickable o Cloudinary)',
+  })
+  @IsOptional()
+  @IsUrl({ protocols: ['https'], require_protocol: true })
+  @MaxLength(500)
+  url_imagen?: string;
 }

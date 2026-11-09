@@ -30,4 +30,7 @@ export class InvProducto {
 
   @Column({ type: 'boolean', default: true })
   activo: boolean;
+
+  @Column({ type: 'varchar', length: 500, nullable: true })
+  url_imagen: string | null;
 }
