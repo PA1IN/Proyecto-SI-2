@@ -4,14 +4,14 @@ Módulo de Inventario del mini-ERP de **Sistemas de Información II** (UCN Coqui
 
 El módulo es dueño del **maestro de productos** (`id_producto`) y del **stock por bodega**. Registra los movimientos de stock para no vender sin stock ni comprar lo que ya existe, y deja trazabilidad de las operaciones.
 
-> **Estado:** Sprint 2. Hay backend con conexión a la BD y dos formularios en el front: crear producto y registrar ingreso de stock.
+> **Estado:** Sprint 3 en curso. El Sprint 2 se entregó con el backend conectado a la BD y dos formularios en el front: crear producto y registrar ingreso de stock.
 
 ## Stack
 
 | Parte | Tecnología | Carpeta |
 | --- | --- | --- |
 | Backend | NestJS 12 (ESM), TypeScript 6, TypeORM + `pg`, Swagger | [`Backend/`](Backend/) |
-| Frontend | React 19 + Vite + React Router | [`Frontend/modulo-inventario/`](Frontend/modulo-inventario/) |
+| Frontend | React 19 + Vite + React Router | [`Frontend/`](Frontend/) |
 | Base de datos | PostgreSQL 17: Neon (compartida entre grupos) o Docker local | [`Backend/db/`](Backend/db/) |
 | Calidad | vitest + supertest, oxlint, prettier | |
 
@@ -20,21 +20,21 @@ El módulo es dueño del **maestro de productos** (`id_producto`) y del **stock 
 ```
 Backend/
 ├─ db/
-│  ├─ ddl/        01_tablas.sql, 02_triggers.sql  (schema inventario)
-│  ├─ dml/        temas, bodegas, 120 productos y stock inicial
+│  ├─ ddl/        tablas, triggers y columna de imagen  (schema inventario)
+│  ├─ dml/        temas, bodegas, 120 productos, stock inicial e imágenes
 │  ├─ local/      crea el schema en el Postgres de Docker
 │  └─ test/       validar_ddl.sql (prueba restricciones y triggers, termina en ROLLBACK)
 ├─ src/
 │  ├─ catalogo/     productos y temas
 │  ├─ stock/        bodegas y stock por bodega
-│  ├─ movimientos/  ingresos de stock
+│  ├─ movimientos/  ingresos, ajustes e historial
 │  ├─ health/       estado del servicio
 │  ├─ common/       filtro global de errores
 │  ├─ config/       validación de variables de entorno
 │  └─ database/     conexión TypeORM (synchronize: false)
 ├─ test/          pruebas e2e
 └─ docker-compose.yml
-Frontend/modulo-inventario/
+Frontend/
 └─ src/           páginas: Productos, DetalleProducto, CrearProducto, IngresoStock, Bodegas
 ```
 
@@ -78,7 +78,7 @@ npm run start:dev
 
 ### 3. Frontend
 
-Desde `Frontend/modulo-inventario/`:
+Desde `Frontend/`:
 
 ```bash
 npm install
@@ -174,6 +174,5 @@ npm run build
 
 ## Pendiente
 
-- **Sprint 3:** autenticación y roles con el JWT de RRHH, integración con e-Commerce, Logística, Compras y Postventa, y las FKs hacia sus tablas.
+- **Sprint 3:** autenticación y roles con el JWT de RRHH, reserva y liberación de stock para e-Commerce, despachos y recepciones con Logística, y las FKs hacia las tablas de los otros módulos.
 - **Sprint 4:** 100 o más registros en una tabla crítica, KPIs y dashboard en Power BI.
-- Integración con e-Commerce: reserva, liberación y egreso por `id_pedido`.
