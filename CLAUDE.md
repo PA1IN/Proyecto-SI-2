@@ -10,7 +10,7 @@ Contexto y reglas de trabajo para retomar el proyecto en cualquier sesión. Resp
 - **Antes de entregar**, correr en `Backend/`: `npm run lint`, `npm test`, `npm run test:e2e` y `npm run build`. Informar el resultado real, aunque falle.
 - **Instalar cada dependencia en el paso que la necesita**, para que el diff de `package.json` sea fácil de revisar.
 - **Ramas:** `main` es la rama principal y se actualiza solo con PR. Cada sesión trabaja en una rama propia, creada desde `main` actualizada, con el nombre del usuario (`dazztyn`) o de la tarea. Nunca trabajar directo en `main`.
-- **Al mergear ramas de otros integrantes a `main`** (por ejemplo, el frontend de `Rama-front` o las ramas del bloque 3), actualizar este archivo: la sección "Estado de ramas", el plan y lo que cambie en el stack.
+- **Al mergear ramas de otros integrantes a `main`**, actualizar este archivo: la sección "Estado de ramas", el plan y lo que cambie en el stack.
 - **Nunca escribir credenciales** (host, usuario o contraseña de la BD) en archivos versionados, en el chat ni en commits. Van solo en `.env`, que está en `.gitignore`.
 - **No crear tablas ni modificar la BD central sin que el equipo lo pida.** Es compartida con los demás grupos.
 
@@ -42,13 +42,13 @@ Contexto y reglas de trabajo para retomar el proyecto en cualquier sesión. Resp
 ### Entregables por sprint
 
 - **Sprint 1 (entregado):** problemática, backlog, BPMN, modelo ER y tablero ágil.
-- **Sprint 2 (actual):**
+- **Sprint 2 (entregado el 28-10-2026):**
   - Primera versión del módulo con conexión a la BD.
   - **Al menos 2 formularios** funcionales de ingreso o consulta.
   - Datos iniciales (10 o más por tabla).
   - Al menos 1 validación.
   - Demo del flujo parcial, mostrando lectura y escritura en la BD.
-- **Sprint 3:**
+- **Sprint 3 (actual):**
   - Integración con los maestros canónicos.
   - Al menos 1 escenario de integración cruzada con otro módulo.
   - Autenticación y roles.
@@ -65,7 +65,9 @@ Contexto y reglas de trabajo para retomar el proyecto en cualquier sesión. Resp
 ## Stack
 
 - **Backend:** `Backend/`, con NestJS 12 (ESM, `"type": "module"`, imports con extensión `.js`), TypeScript 6, TypeORM 1.1 + `pg`, vitest + supertest y oxlint + prettier.
-- **Frontend:** React + Vite (puerto 5173) en `Frontend/modulo-inventario/`. En desarrollo en `Rama-front`; todavía no está en `main`. Usa datos simulados (`VITE_USE_MOCK`) y un proxy de Vite hacia `http://localhost:3000`.
+- **Frontend:** React 19 + Vite (puerto 5173) en `Frontend/` (antes estaba en `Frontend/modulo-inventario/`). Ya está en `main`.
+  - Páginas: listado de productos con stock, detalle, crear producto, ingreso de stock y bodegas.
+  - Proxy de Vite hacia `http://localhost:3000`. Con `VITE_USE_MOCK=false` usa el backend real.
 - **BD:** PostgreSQL en un proyecto nuevo de Neon (servicio en la nube), base `si2_22026`.
 - **Comunicación entre módulos:** HTTP/REST.
 
@@ -73,15 +75,24 @@ Contexto y reglas de trabajo para retomar el proyecto en cualquier sesión. Resp
 
 - **Organización:** un schema por grupo, en minúsculas: `compras`, `crm`, `ecommerce_ventas`, `finanzas`, `inventario`, `logistica`, `postventa` y `rrhh`. Las tablas comunes van en `public`.
   - En SQL no hacen falta comillas. En TypeORM: `schema: 'inventario'`.
-- **Estado al 26-10-2026:** `inventario` cargado con el DDL y el DML del repo (8 tablas, triggers, 120 productos y 400 filas de stock); respaldo previo con `pg_dump` (schema vacío). `compras`, `crm` y `logistica` ya subieron sus tablas.
-  - Datos creados en las pruebas: el producto `id_producto` 121 (`10497-1`, Galaxy Explorer, tema Icons), creado con `POST /productos`. Ese SKU ya no sirve para crear otro producto en la demo (da 409).
+- **Estado de `inventario` al 11-11-2026:**
+  - 8 tablas y triggers. 129 productos: los 120 del DML más 9 creados en pruebas, entre ellos el 121 (`10497-1`) y `12345-1` ("Lego Mr. Beast"). 404 filas de stock y 15 movimientos.
+  - Columna `url_imagen` en `inv_producto` (`db/ddl/03` y `db/dml/05`, ejecutados el 11-11): 121 productos con imagen de Rebrickable.
+  - Último respaldo con `pg_dump -n inventario`: 11-11-2026, antes de ese DDL. Está en el equipo de dazztyn, fuera del repo.
+  - Un SKU ya usado no sirve para crear otro producto en una demo (da 409).
+- **Otros schemas (visto en DBeaver el 11-11-2026):**
+  - `rrhh`: ya tiene `rrhh.empleado` (PK `id_empleado serial`; el 27-10 tenía 10 empleados).
+  - `postventa`: tiene tablas con productos (`cambio_producto`, `registro_producto`).
+  - `logistica`: usa tablas de prueba propias (`test_log_inv_producto`, `test_log_inv_mov`, `test_log_ventas_pedido`) en vez de nuestros datos y los de e-Commerce.
+  - Hay un schema nuevo, `master`. Falta confirmar quién lo creó y qué contiene.
+- **DBeaver:** el editor puede subrayar en rojo tablas que sí existen ("Table … not found"). Es un falso aviso de su validación. Los scripts se ejecutan con Alt+X y lo que vale es el panel de resultados.
 - **Acceso de superusuario y sin respaldo en el motor** (correo del profesor). Un error puede borrar datos de cualquier grupo sin vuelta atrás. Reglas:
   - Todo SQL califica el schema (`inventario.inv_producto`). Una tabla sin schema cae en `public`, que es compartido.
   - Los scripts del repo no usan `DROP` ni `TRUNCATE`, y el DDL va dentro de `BEGIN … COMMIT`.
   - Antes de cada DDL, respaldar nuestro schema con `pg_dump -n inventario`.
   - Nunca escribir en schemas de otros grupos ni en `public` sin acuerdo entre los grupos.
 - **Maestro de productos:** vive en nuestro schema (`inventario.inv_producto`), igual que en la BD del semestre anterior, donde cada maestro estaba en el schema de su módulo. Los otros grupos lo referencian con FKs entre schemas.
-- **Las FKs hacia tablas de otros módulos** solo se pueden crear cuando esas tablas existan (Sprint 3). El Sprint 2 no interactúa con otros módulos.
+- **Las FKs hacia tablas de otros módulos** solo se pueden crear cuando esas tablas existan y su PK sea del mismo tipo. Se agregan en el Sprint 3 (ver "Sprint 3: plan").
 - **Entorno local primero:** el DDL y el DML se prueban en un Postgres local con Docker antes de ejecutarlos en la BD del profesor. `pg_dump` y `psql` se usan desde la imagen de Docker (no están instalados en el equipo).
 - **Conexión:**
   - El endpoint de Neon con `-pooler` sirve para la app.
@@ -93,7 +104,7 @@ Contexto y reglas de trabajo para retomar el proyecto en cualquier sesión. Resp
 ```
 -- Sprint 2 (schema inventario)
 inv_temas(id_tema serial PK, nombre_tema)
-inv_producto(id_producto serial PK, id_tema FK, sku UNIQUE, nombre_set, cant_piezas, activo)
+inv_producto(id_producto serial PK, id_tema FK, sku UNIQUE, nombre_set, cant_piezas, activo, url_imagen null)
 inv_bodegas(id_bodega serial PK, nombre_bodega, ubicacion_fisica)
 inv_stock_bodega(id_producto PK/FK, id_bodega PK/FK, cantidad_disponible, cantidad_reservada, cantidad_minima)
 inv_movimiento(id_movimiento serial PK, id_empleado int, id_pedido int null, id_devolucion int null, fecha_registro, tipo_operacion, estado)
@@ -109,6 +120,7 @@ id_despacho → logistica, id_proveedor e id_oc → compras
 ### Decisiones tomadas
 
 - **Claves del producto:** `id_producto` es `serial` (PK canónica). `sku` es la clave de negocio única (el número de set de LEGO).
+- **Imagen:** `url_imagen` guarda solo la URL, nunca el archivo (acordado con e-Commerce el 09-11-2026). Los productos del dataset usan la URL de Rebrickable (columna `img_url` de `sets.csv`). Para productos propios se puede usar Cloudinary; la subida de archivos no está implementada y la API recibe solo la URL (`https`).
 - **Precio:** lo maneja **e-Commerce** (`CATALOGO.precio_venta`). `inv_producto` no guarda precio y los KPIs propios van en unidades.
   - Un producto se vende solo si está activo, tiene precio en `CATALOGO` y stock disponible mayor a 0.
 - **`tipo_operacion`:** `INGRESO`, `EGRESO`, `RESERVA`, `LIBERACION`, `AJUSTE`, `DEVOLUCION`. Van sin tildes en la BD.
@@ -120,7 +132,8 @@ id_despacho → logistica, id_proveedor e id_oc → compras
 ### Reglas de negocio
 
 - **Reserva:** producto de un pedido **ya pagado** que aún no se despacha. El carrito no reserva.
-  - Checkout propuesto a e-Commerce: reservar y luego cobrar. Si la reserva responde 409, no se cobra; si el cobro falla, se libera.
+  - Acordado con e-Commerce el 09-11-2026: ellos llaman a la reserva **después de confirmar el pago**. Nosotros implementamos los endpoints de reserva y liberación.
+  - Por definir con ellos: qué hacen si la reserva responde 409 con el pago ya confirmado (devolución del dinero o pedido en espera).
 - **Efecto de cada tipo en el stock:**
 
 | Tipo | Efecto | Cuándo ocurre |
@@ -151,50 +164,78 @@ id_despacho → logistica, id_proveedor e id_oc → compras
 
 - **`DEVOLUCION`:** pendiente con Postventa si reingresa como disponible o queda en revisión.
 - **KPIs:** se definen más adelante con los datos que haya.
-- **Roles:** propuesta definida (ver "Roles y permisos del módulo"); falta que RRHH confirme los nombres y el formato del JWT.
+- **Roles:** ver "Roles y permisos del módulo". Falta que RRHH cree nuestros roles y entregue el secreto del JWT.
+- **`id_empleado` en movimientos automáticos:** la columna es `NOT NULL`, pero una reserva o liberación la dispara e-Commerce sin un empleado detrás. Recomendado: volverla nullable (`NULL` = lo hizo el sistema), como en el primer DDL. Alternativa: un empleado "sistema" creado por RRHH.
+- **Credencial de servicio:** API key por módulo (e-Commerce ya manda `INVENTORY_API_TOKEN` como `Bearer`) o dejar abiertos los endpoints de integración. Esperando la respuesta de e-Commerce.
+- **Idempotencia de la reserva:** un reintento con el mismo `id_pedido` no debe reservar dos veces. Lo seguro es un índice único parcial (una `RESERVA` por `id_pedido`), que es un cambio de DDL.
+- **Tipo de `id_despacho`:** nuestra columna es `int`, pero las guías de Logística tienen ID de texto (`GD-52341`).
 - **Diagrama draw.io:** quitar las tildes de `tipo_operacion`, corregir la errata "inv_movimientos", cambiar "Hereda de" por "FK a", agregar `cantidad_minima` y quitar `coleccion`, `edad_minima` y `tipo_construccion`.
 
-## Roles y permisos del módulo (propuesta del 25-10-2026, por enviar a RRHH)
+## Roles y permisos del módulo (acordado el 09-11-2026; faltan detalles con RRHH)
 
-RRHH gestiona el login y emite el JWT. Nuestro backend solo lee `id_empleado` y `rol` del token validado; el rol nunca viene del body.
+RRHH gestiona el login y emite el JWT, con roles por módulo. Nuestro backend solo lee el empleado y el rol del token validado; el rol nunca viene del body.
 
-| Rol (valor exacto en el JWT) | Quién es | Qué hace en el módulo |
+| Rol (valor exacto por confirmar con RRHH) | Quién es | Qué hace en el módulo |
 | --- | --- | --- |
 | `JEFE_BODEGA` | Responsable del inventario | Todo: maestro de productos, ajustes, mínimos de stock y reportes |
 | `OPERADOR_BODEGA` | Trabajador de bodega | Operación diaria: registrar ingresos y consultar stock |
 | `CONSULTA` | Marketing u otras áreas | Solo lectura: catálogo, stock y reportes en unidades |
-| `ADMIN` | Administrador general del ERP (lo define RRHH) | Mismos permisos que `JEFE_BODEGA` en nuestros guards |
 
-| Acción | Endpoint (referencial) | Jefe / Admin | Operador | Consulta |
+Por decidir: si el rol `Administrador` de RRHH tiene acceso total en nuestros guards (antes lo llamábamos `ADMIN`).
+
+| Acción | Endpoint (referencial) | Jefe | Operador | Consulta |
 | --- | --- | --- | --- | --- |
 | Ver productos, temas y bodegas | `GET /productos`, `/productos/temas`, `/bodegas` | Sí | Sí | Sí |
 | Ver stock | `GET /stock`, `/stock/:idProducto` | Sí | Sí | Sí |
 | Ver historial de movimientos | `GET /movimientos` | Sí | Sí | No |
 | Crear o editar producto, baja lógica | `POST/PATCH/DELETE /productos` | Sí | No | No |
+| Crear o editar bodega | `POST/PATCH /bodegas` | Sí | No | No |
 | Registrar ingreso | `POST /movimientos/ingreso` | Sí | Sí | No |
 | Registrar ajuste (conteo, merma, error) | `POST /movimientos/ajuste` | Sí | No | No |
-| Cambiar el stock mínimo por bodega | `PATCH /stock/...` | Sí | No | No |
-| Ver KPIs y alertas | `GET /reportes`, `/alertas` | Sí | No | Sí |
+| Cambiar el stock mínimo por bodega | `PATCH /stock/...` (no existe aún) | Sí | No | No |
+| Ver KPIs y alertas | `GET /reportes`, `/alertas` (no existen aún) | Sí | No | Sí |
 
-- Ya existen en `main`: `GET /productos`, `GET /productos/temas`, `POST /productos`, `GET /bodegas`, `GET /stock/:idProducto` y `POST /movimientos/ingreso`. Las demás rutas se fijan al construir cada módulo (bloque 3).
-- **Integraciones sin rol humano:** reservar, liberar y confirmar despachos o recepciones lo invocan e-Commerce y Logística, no un empleado. Hace falta una credencial de servicio (por ejemplo, rol `SERVICIO` en un token emitido por RRHH, o una API key por módulo). Acordarlo con RRHH junto con los roles.
-- **Por confirmar con RRHH:**
-  - Nombres exactos de los roles y si un empleado puede tener más de uno (`rol` texto o `roles` arreglo).
-  - Claims del token: `id_empleado` (int, el mismo de su maestro), `rol` y `exp`.
-  - Firma: secreto compartido (HS256, `JWT_SECRET`) o clave pública (RS256), y cómo se distribuye.
-  - Endpoint de login y duración del token.
+- **Hoy ningún endpoint pide token.** Los guards son la tarea S3.2.
 - **Sugerencia abierta:** permitir que el Operador vea las alertas de stock bajo, porque es quien repone en bodega.
+
+### Cómo funciona el token de RRHH (repo revisado el 08-11-2026)
+
+- **Login:** `POST /auth/login` con `{ username, password }`. Responde `{ accessToken, user }`. Sin prefijo `/api/v1`.
+- **Firma:** HS256 con secreto compartido (`JWT_SECRET`). Dura 8 horas. Lo validamos en nuestro backend con el mismo secreto, sin llamar a RRHH.
+- **Claims:** `sub`, `username`, `role` (texto), `employeeId` (el `id_empleado` de `rrhh.empleado`) y `source` (`'demo'` o `'db'`). Ojo: son `employeeId` y `role`, no `id_empleado` ni `rol`.
+- **Roles:** tabla `rrhh.rol`, asignados en `rrhh.empleado_rol`.
+
+**Pendiente con RRHH:**
+- **Secreto real:** si no configuran `JWT_SECRET`, su código usa un valor por defecto que está en su repo. Deben fijar uno y entregarlo por fuera del repo.
+- **Crear nuestros roles** en `rrhh.rol` con nombres exactos y asignarlos a empleados de prueba.
+- **Un solo rol por token:** toman el primer rol del empleado por `id_rol`. Con roles por módulo, pedir un arreglo `roles` o un solo rol por empleado.
+- **Admin de prueba:** su usuario `admin` (`source: 'demo'`) no existe en la BD. Decidir si lo aceptamos.
+- **Revocación:** validando solo la firma, un empleado bloqueado conserva el acceso hasta que venza su token.
+- **CORS de su login:** solo acepta sus propios front. Para que nuestro front inicie sesión, deben agregar nuestro origen.
+
+### Integraciones sin rol humano
+
+Reservar, liberar y confirmar despachos o recepciones lo invocan e-Commerce y Logística, no un empleado. El JWT de RRHH no sirve ahí, porque identifica a una persona. Ver "Credencial de servicio" e "`id_empleado` en movimientos automáticos" en las decisiones abiertas.
 
 ## Coordinación con otros equipos
 
 - **Todos:**
-  - API con prefijo `/api/v1`, formato de error común, fechas ISO-8601 y montos en CLP enteros.
+  - API con prefijo `/api/v1`, formato de error común, fechas ISO-8601 y montos en CLP enteros. Al 08-11, RRHH, e-Commerce y Logística no usan el prefijo.
   - Los maestros ajenos se leen de la BD (solo lectura) y el estado de otro módulo se escribe solo vía su API.
-- **RRHH:** login y emisión del JWT (`id_empleado` + rol). Enviarles la propuesta de "Roles y permisos del módulo" y la necesidad de una credencial de servicio para las integraciones.
-- **e-Commerce:** contrato para reservar, confirmar y liberar con `id_pedido`; cómo se enteran de los productos nuevos.
-- **Logística:** contenido de la confirmación de despacho y de recepción.
-- **Compras:** cómo reciben la alerta de stock bajo.
-- **Postventa:** devoluciones.
+  - Todos los módulos deben usar nuestros productos (`inventario.inv_producto`, `id_producto int`). Sus implementaciones están pendientes.
+  - Puertos: RRHH y nosotros usamos el 3000 y todos los front el 5173. Para una demo integrada hay que asignar puertos fijos y ajustar el CORS.
+- **RRHH** (https://github.com/Pabluntt/Lesgo-RRHH): login y JWT. Ver "Cómo funciona el token de RRHH" y sus pendientes.
+- **e-Commerce** (https://github.com/benjatorress/LesGo-ECommerce), reunión del 09-11-2026:
+  - **Acordado:** reservan tras confirmar el pago; nosotros implementamos reserva y liberación; las imágenes viven en nuestro maestro.
+  - **Ya les sirve:** `GET /productos/catalogo` y `GET /productos/:id` (producto, tema, `url_imagen` y `cantidad_disponible`).
+  - **Su adaptador** (`inventoryService.js`) llama a una URL de listado y otra de detalle, mapea campos con `INVENTORY_FIELD_MAP` y manda `INVENTORY_API_TOKEN` como `Bearer`.
+  - **Diferencias que deben corregir (visto el 08-11):** esperan `id_producto` como UUID (`ecom_detalle_pedido.id_producto UUID`) y un precio desde Inventario; no reservan, solo comparan contra el stock; no tienen cancelación de pedidos; usan montos con decimales.
+  - **Su tabla de pedidos:** `ecommerce_ventas.ecom_pedido` (PK `INTEGER`). Falta confirmar que exista en Neon.
+- **Logística** (https://github.com/ElMatsiii/ERP-Logistica), visto el 08-11:
+  - Usan `id_producto INTEGER`, que calza. Hoy no nos llaman: registran `SALIDA` y `ENTRADA` en su tabla de prueba.
+  - **Por acordar:** que el despacho llame a nuestro egreso por `id_pedido`; el tipo de sus IDs (guías y OTs de texto, `id_pedido` de texto); el despacho parcial (su OT tiene estado `PARCIAL`); y que la recepción de OC envíe `id_proveedor` y `nro_guia_proveedor`, que su `log_recepcion` no guarda.
+- **Compras:** FKs de `id_proveedor` e `id_oc`, y cómo reciben la alerta de stock bajo (`GET /stock` ya trae `bodegas_bajo_minimo`). Sin reunión todavía.
+- **Postventa:** efecto de una devolución en el stock. Sin reunión todavía.
 
 ## Arquitectura del backend
 
@@ -204,7 +245,6 @@ Monolito modular NestJS en capas (controller → service → repositorio). Las i
 Backend/
 ├─ .env.example
 ├─ db/ddl/*.sql, db/dml/*.sql   ← fuente de verdad del esquema (entregable)
-├─ postman/                     ← colección de pruebas de la API (demo por Postman o Swagger)
 └─ src/
    ├─ main.ts / setup-app.ts  ← prefijo /api/v1, CORS (Vite :5173), ValidationPipe, Swagger /api/docs
    ├─ config/                 ← validación de variables de entorno
@@ -214,6 +254,15 @@ Backend/
    ├─ database/               ← TypeORM (synchronize: false)
    ├─ catalogo/ bodegas/ stock/ movimientos/ alertas/ integraciones/ reportes/
 ```
+
+Al 11-11-2026 existen `config/`, `common/`, `health/`, `database/`, `catalogo/`, `stock/` (incluye bodegas) y `movimientos/`. Faltan `auth/`, `alertas/`, `integraciones/` y `reportes/`.
+
+**Endpoints en `main`:**
+- `GET /health`
+- `GET /productos`, `/productos/temas`, `/productos/catalogo`, `/productos/:id`; `POST /productos`; `PATCH` y `DELETE /productos/:id`
+- `GET` y `POST /bodegas`; `PATCH /bodegas/:id`
+- `GET /stock`, `/stock/:idProducto`
+- `GET /movimientos`, `/movimientos/:id`; `POST /movimientos/ingreso`, `/movimientos/ajuste`
 
 ### Reglas técnicas (lecciones del repo de referencia heuremi/backend-inventario)
 
@@ -227,68 +276,55 @@ Backend/
 - Usar baja lógica (`activo`), no borrado físico.
 - Si dos entidades se importan mutuamente, el lado `@ManyToOne` declara el tipo como `Relation<T>`. Si no, en ESM la app compilada se cae al iniciar (`Cannot access 'X' before initialization`). Vitest no detecta este error: hay que probar con `npm run build` y arrancar la app.
 
-## Estado de ramas (al 26-10-2026)
+## Estado de ramas (al 11-11-2026)
 
-| Rama | Contenido | Estado |
+`main` tiene todo lo desarrollado. Cada tarea nueva va en una rama propia desde `main` actualizada y entra por PR.
+
+| PR | Rama | Contenido |
 | --- | --- | --- |
-| `main` | Pasos 1 a 7 (config, setup-app, filtro de errores, health, Postgres local, DDL/DML y ORM con TypeORM) y del bloque 3: 3.2, 3.3, `GET /bodegas` y la colección Postman. Endpoints: `GET /productos`, `GET /productos/temas`, `POST /productos`, `GET /bodegas`, `GET /stock/:idProducto` y `POST /movimientos/ingreso` | Al día con `faltante-para-sprint2` (PR #10) |
-| `docs-estado-sprint2` | Este archivo, actualizado después del PR #10 | Pendiente de PR |
-| `faltante-para-sprint2` | 3.2, 3.3, `GET /bodegas` y la colección Postman | Ya mergeada en `main` (PR #10); el resto del bloque 3 va en ramas nuevas desde `main` |
-| `Rama-front` | Frontend React + Vite (`Frontend/modulo-inventario/`): páginas de productos y bodegas, con datos simulados | Pendiente de merge a `main`. Su respuesta esperada de `GET /productos` no calza con la del backend (ver bloque 3) |
-| `David-rama`, `Pablo-Rama` | ORM y fixes de los bloques 1 y 2 | Ya mergeadas en `main` (PR #5 y #9); no se usan más |
-| `config-base`, `fixes-previo-a-entidades`, `bd-local-prueba`, `dazztyn` | Pasos 1 a 6 y documentación | Ya mergeadas en `main`; no se usan más |
+| #5, #9, #10 | varias | Base del backend, ORM, ingreso, `GET /bodegas` |
+| #12, #14 | `Rama-front`, `mejoras-front` | Frontend: listado, detalle, crear producto e ingreso de stock |
+| #13 | `stock-resumen` | `GET /stock` con el resumen por producto |
+| #15 | `fix-david-rama` | CRUD de productos y bodegas, historial y ajuste (trabajo de `David-rama` más correcciones) |
+| #16 | `catalogo-ecommerce` | `GET /productos/catalogo` y `GET /productos/:id` |
+| #17 | `imagenes-productos` | Columna `url_imagen` y su DML |
 
-Pendiente aparte: un commit `chore(deps): npm audit fix` (sin `--force`) en su propia rama. Hay 3 vulnerabilidades altas en dependencias de producción (`body-parser` y `multer`, vía `@nestjs/platform-express`).
+Ninguna rama remota tiene trabajo sin mergear. `docs-estado-sprint3` actualiza este archivo y el README.
 
-## Plan inmediato: base del backend y schema propio
+## Plan base del backend
 
-Cada paso equivale a un commit, con revisión entre pasos. Los pasos 1 a 7 ya están en `main`.
+Los pasos 1 a 7 y el 10 están en `main`: configuración validada, `setup-app.ts`, filtro global de errores, `/health`, Postgres local con Docker, DDL y DML, TypeORM y README.
 
-1. ✅ Configuración validada (`@nestjs/config` + class-validator) y `.env.example`.
-2. ✅ `setup-app.ts`: prefijo `/api/v1`, CORS, `ValidationPipe` y Swagger. Se elimina el controlador de ejemplo del scaffold.
-3. ✅ Filtro global de errores con un formato único.
-4. ✅ `GET /api/v1/health` (sin BD) y los e2e correspondientes.
-5. ✅ Postgres local con Docker (`docker-compose.yml`, misma versión mayor que Neon).
-6. ✅ DDL y DML del schema `inventario`, probados en local: 8 tablas (2 subtablas vacías hasta el Sprint 3), triggers de inmutabilidad, 120 productos de Rebrickable y `db/test/validar_ddl.sql`.
-7. ✅ TypeORM y conexión (local o Neon según el `.env`, con SSL validado). La verificación de la BD en `/health` pasó al bloque 3.
-8. Auth simulado: JWT, guards, decoradores y los roles de "Roles y permisos del módulo" (`JEFE_BODEGA`, `OPERADOR_BODEGA`, `CONSULTA`, `ADMIN`), con un token de prueba por rol solo en desarrollo. Usar los mismos claims que se acuerden con RRHH, para que en el Sprint 3 solo cambie quién firma el token.
-9. DTO de paginación.
-10. README en español.
+Pendientes del plan base:
+- **Paso 8, autenticación:** ahora es la tarea S3.2.
+- **Paso 9, paginación:** `GET /movimientos` está limitado a los 100 más recientes.
+- **`/health` con `SELECT 1`:** 200 `{ status: 'ok', bd: 'ok' }`, o 503 si no hay conexión.
+- **Tests de `calcularAsignacionReserva`:** alcanza una bodega, reparte entre dos, empate por id menor e insuficiente da `null`. Hacerlos antes de usar la reserva.
+- **`npm audit fix`** (sin `--force`) en su propia rama: 3 vulnerabilidades altas (`body-parser` y `multer`, vía `@nestjs/platform-express`).
+- **Colección Postman:** se borró de `main` en el commit `0da7e73`. Se recupera con `git checkout 8d5c97a -- Backend/postman/inventario.postman_collection.json` si se necesita.
 
-**Neon:** el DDL/DML ya está ejecutado (26-10-2026, desde DBeaver con conexión sin `-pooler`, pegando cada script y ejecutándolo con Alt+X). Los cambios futuros al esquema van primero a `db/ddl` o `db/dml`, se prueban en local y recién después se ejecutan en Neon. Seguir desarrollando con el Postgres local. Después del bloque 3 siguen los pasos 8, 9 y 10, y el `npm audit fix`.
+**Cambios al esquema:** van primero a `db/ddl` o `db/dml`, se prueban en el Postgres local y después se ejecutan en Neon desde DBeaver (conexión sin `-pooler`, abriendo el archivo y ejecutando con Alt+X), con un `pg_dump -n inventario` previo.
 
-## Bloque 3: lo que falta para la demo del Sprint 2
+## Sprint 2 (cerrado)
 
-Objetivo: los 2 formularios leyendo y escribiendo en la BD. Formulario 1, productos (crear y consultar). Formulario 2, movimientos (registrar un ingreso y ver el stock actualizado). Cada tarea va en su propia rama desde `main` y equivale a un commit o PR.
+Entregado el 28-10-2026: dos formularios (crear producto e ingreso de stock) leyendo y escribiendo en Neon, datos iniciales y validaciones (409 por SKU repetido, 404 y 400). El bloque 3 quedó completo salvo los pendientes listados en "Plan base del backend".
 
-| # | Rama sugerida | Tarea | Depende de |
-| --- | --- | --- | --- |
-| 3.1 | `health-bd` | `/health` ejecuta `SELECT 1` con el `DataSource`: 200 `{ status: 'ok', bd: 'ok' }`, o 503 si no hay conexión. Con e2e | — |
-| 3.2 ✅ | `entidades-movimiento` | Entidades `InvMovimiento` (`fecha_registro` como `timestamptz`), `InvDetalleMovimiento`, `InvDespachoOperario` e `InvRecepcionCompra`, alineadas con `db/ddl/01_tablas.sql` | — |
-| 3.3 ✅ | `ingreso-movimientos` | **Formulario 2.** `POST /movimientos/ingreso` con `RegistrarIngresoDto`. Valida que el producto exista y esté activo, y que la bodega exista (404). En una transacción: cabecera `INGRESO` `COMPLETADO`, detalle y stock con `INSERT ... ON CONFLICT (id_producto, id_bodega) DO UPDATE` que suma la cantidad. Responde 201 con el movimiento y su detalle. `id_empleado` sigue en el body con `// TODO paso 8: sacarlo del token`. Tests unitarios del servicio | 3.2 |
-| 3.4 | `ajuste-movimientos` | Opcional para la demo. `POST /movimientos/ajuste` con cantidad distinta de 0; si es negativa, `UPDATE` condicional y 409 si el stock quedaría bajo 0 | 3.2 |
-| 3.5 (parcial) | `consultas` | **`GET /bodegas` ✅ (PR #10)**: lo usan la página de bodegas y el selector del formulario de ingreso. Falta, opcional para la demo: `GET /movimientos` (más recientes primero, `?limit=` con máximo 100 hasta el paso 9) y `GET /movimientos/:id` con su detalle | 3.2 (solo movimientos) |
-| 3.6 | `contrato-front` | El front espera en `GET /productos` el tema como texto y `cantidad_disponible`, `cantidad_reservada` y `stock_minimo` sumados por producto. **Esencial:** con datos reales, la tabla mostraría `[object Object]` y columnas vacías. Opción más barata: que el front lea `tema.nombre_tema` de `GET /productos` y el stock con `GET /stock/:idProducto`. Alternativa: `GET /stock` con el resumen por producto (usando `cantidad_minima`); `GET /productos` queda como maestro. **Acordarlo con quien hace el front antes de programar** | — |
-| 3.7 | `catalogo-crud` | `GET /productos/:id` (404), `PATCH /productos/:id` (DTO con `PartialType` de `@nestjs/swagger`; SKU repetido da 409) y `DELETE /productos/:id` como baja lógica (`activo = false`) | — |
-| 3.8 | `tests-unitarios` | `calcularAsignacionReserva` (alcanza una bodega, reparte entre dos, empate por id menor, insuficiente da `null`) y `CatalogoService` (tema inexistente da 404, SKU duplicado da 409) | — |
-| 3.9 | `Rama-front` | **Esencial. Formulario 1 en el front:** crear producto (SKU, nombre, piezas y selector de tema desde `GET /productos/temas`) con `POST /productos`; muestra los errores 409/404/400 del backend y luego el producto en el listado | 3.6 |
-| 3.10 | `Rama-front` | **Esencial. Formulario 2 en el front:** registrar ingreso (selectores de producto y bodega, y cantidad) con `POST /movimientos/ingreso`; al guardar, muestra el stock actualizado con `GET /stock/:idProducto`. `fetchBodegas()` debe llamar a `GET /bodegas` (hoy devuelve siempre datos simulados) | 3.5 (`GET /bodegas`) |
-| 3.11 | — | **Esencial.** Mergear `Rama-front` a `main` por PR y actualizar este archivo | 3.9, 3.10 |
+## Sprint 3: plan
 
-**Estado del front (revisado el 26-10-2026 en `origin/Rama-front`):** solo tiene páginas de lectura (`Productos.tsx` y `Bodegas.tsx`), sin ningún `<form>` ni `POST`. Por eso los formularios del Sprint 2 dependen de 3.9 y 3.10.
+Exige: integración con los maestros canónicos, al menos 1 escenario de integración cruzada, autenticación y roles, 3 validaciones en total y demo del flujo completo. Las validaciones ya están cubiertas.
 
-**Esencial para la demo:** `GET /bodegas` (3.5) ✅, 3.6, 3.9, 3.10 y 3.11. Lo que falta es todo del front. **Opcional:** 3.1, 3.4, 3.7, 3.8 y `GET /movimientos`. Plan B: demo por Swagger, con el riesgo de que no cuente como formulario (confirmar con el profesor).
+| # | Tarea | Depende de |
+| --- | --- | --- |
+| S3.1 | **Reserva y liberación para e-Commerce.** `POST /movimientos/reserva` con `{ id_pedido, lineas: [{ id_producto, cantidad }] }`: un movimiento `RESERVA` `PENDIENTE`, todo o nada (409 si una línea no alcanza), idempotente por `id_pedido`. `POST /movimientos/liberacion` con `{ id_pedido }`: devuelve lo reservado, crea la `LIBERACION` y deja la reserva `ANULADO`. Usa `ReservaStrategy`. El `RegistrarReservaDto` actual recibe un solo producto: cambiarlo a `lineas` | Decidir `id_empleado` nullable e índice único (DDL) |
+| S3.2 | **Autenticación y roles.** Guard de JWT (lee `employeeId` y `role`, secreto en `.env`), guard de roles con los nombres en constantes, tokens de prueba solo en desarrollo y sacar `id_empleado` del body | Se puede avanzar ya; el secreto y los nombres finales los da RRHH |
+| S3.3 | **Credencial de servicio** para los endpoints de integración: guard de API key, o dejarlos abiertos como limitación declarada | Respuesta de e-Commerce |
+| S3.4 | **Egreso por despacho.** `POST /movimientos/egreso` con `{ id_pedido, id_despacho }`: descuenta lo reservado, crea el `EGRESO` y su fila en `inv_despachos_operario`, y deja la reserva `COMPLETADO` | S3.1 y acuerdos con Logística |
+| S3.5 | **Recepción de OC.** `POST /movimientos/recepcion`: `INGRESO` con su fila en `inv_recepciones_compra`; la recepción repetida da 409 por el `UNIQUE (id_oc, nro_guia_proveedor)` | Acuerdos con Logística y Compras |
+| S3.6 | **FKs a otros módulos** con `ALTER TABLE`. La de `id_empleado` → `rrhh.empleado` ya se puede crear: todos los movimientos usan el empleado 1, que existe. Avisar antes a RRHH, porque `ON DELETE RESTRICT` les impide borrar a ese empleado | Tablas de cada grupo |
+| S3.7 | **Front:** mostrar la imagen del producto, inicio de sesión con RRHH y pantallas de ajuste e historial | S3.2 para el login |
+| S3.8 | **Devoluciones** con Postventa | Reunión con Postventa |
 
-Orden sugerido: 3.2 primero, porque desbloquea 3.3, 3.4 y 3.5. Hecho y en `main` (PR #10): 3.2 ✅ → 3.3 ✅ → `GET /bodegas` (3.5) ✅. Sigue, cada una en su rama desde `main`: resto de la 3.5 → 3.1 → 3.8 → 3.4 → 3.7. En paralelo, quien lleva `Rama-front`: acordar la 3.6 y hacer 3.9 y 3.10. Varias tareas tocan `app.module.ts`, pero ahí los conflictos son de una línea.
-
-**Checklist de la demo:**
-
-- [x] DDL y DML ejecutados en Neon (conteos verificados en DBeaver).
-- [x] Backend contra Neon: `GET /productos` devuelve 120 productos (121 después de la prueba de creación), y `GET /bodegas`, `GET /stock/:idProducto` y `/health` responden.
-- [x] Backend del formulario 1 en Neon: `POST /productos` crea el producto 121 y aparece en `GET /productos`. Falta la pantalla del front (3.9).
-- [x] Backend del formulario 2 en el Postgres local: `POST /movimientos/ingreso` crea la fila de stock si no existe y suma si existe. **Falta probarlo en Neon** (el movimiento queda permanente): un ingreso al producto 121 en la bodega 1. Falta la pantalla del front (3.10).
-- [ ] Validaciones a mostrar: SKU duplicado (409), tema inexistente (404) y campos inválidos (400) ya probados en Neon; producto o bodega inexistente en el ingreso (404) y cantidad 0 (400) probados en local. Falta stock negativo (409 en el ajuste, 3.4, o `CHECK` en la BD).
-- [ ] Frontend conectado al backend (`VITE_USE_MOCK=false`), o la demo con `Backend/postman/inventario.postman_collection.json` (Postman o Swagger) si no alcanza.
+**Integración cruzada para la demo:** checkout de e-Commerce con nuestra reserva (S3.1). Orden sugerido: S3.1 → S3.2 → S3.3 → S3.4 → S3.6.
 
 ## Material de referencia
 
@@ -297,4 +333,5 @@ Orden sugerido: 3.2 primero, porque desbloquea 3.3, 3.4 y 3.5. Hecho y en `main`
 - ER del módulo: `Modelo_ER_inventario.drawio`.
 - Informe Sprint 1: `Entrega_Sprint_1_Grupo_2.pdf`.
 - Repo de referencia: https://github.com/heuremi/backend-Inventario
+- Repos de otros módulos: ver "Coordinación con otros equipos".
 - Documento compartido del plan: https://claude.ai/code/artifact/562b73af-7358-4e2f-a67d-c738c6cec7d6
