@@ -4,6 +4,7 @@ import {
   IsEnum,
   IsInt,
   IsUrl,
+  Matches,
   Max,
   Min,
   validateSync,
@@ -58,6 +59,14 @@ export class EnvironmentVariables {
   @Min(1)
   @Max(65535)
   POSTGRES_PORT: number = 5432;
+
+  // API keys de los módulos que nos consumen: "modulo:clave,modulo:clave".
+  // Vacío = ningún módulo puede llamar a los endpoints de integración (401).
+  @Matches(/^([a-z_]+:[^,\s]{16,}(,\s*|$))*$/, {
+    message:
+      'INTEGRACION_API_KEYS debe tener el formato modulo:clave,modulo:clave (claves de 16 caracteres o más)',
+  })
+  INTEGRACION_API_KEYS: string = '';
 }
 
 // Lo usa ConfigModule al arrancar: si una variable no es válida, la app no inicia.
