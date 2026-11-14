@@ -107,7 +107,7 @@ inv_temas(id_tema serial PK, nombre_tema)
 inv_producto(id_producto serial PK, id_tema FK, sku UNIQUE, nombre_set, cant_piezas, activo, url_imagen null)
 inv_bodegas(id_bodega serial PK, nombre_bodega, ubicacion_fisica)
 inv_stock_bodega(id_producto PK/FK, id_bodega PK/FK, cantidad_disponible, cantidad_reservada, cantidad_minima)
-inv_movimiento(id_movimiento serial PK, id_empleado int, id_pedido int null, id_devolucion int null, fecha_registro, tipo_operacion, estado)
+inv_movimiento(id_movimiento serial PK, id_empleado int null (solo en RESERVA y LIBERACION), id_pedido int null, id_devolucion int null, fecha_registro, tipo_operacion, estado)
 inv_detalles_movimiento(id_detalle serial PK, id_movimiento FK, id_producto FK, id_bodega FK, cantidad)
 inv_despachos_operario(id_movimiento PK/FK, id_despacho int UNIQUE, observaciones_picking)        -- vacía hasta el Sprint 3
 inv_recepciones_compra(id_movimiento PK/FK, id_proveedor int, id_oc int, nro_guia_proveedor, UNIQUE(id_oc, nro_guia_proveedor))  -- vacía hasta el Sprint 3
@@ -127,6 +127,7 @@ id_despacho → logistica, id_proveedor e id_oc → compras
 - **`estado`:** `PENDIENTE`, `COMPLETADO`, `ANULADO`.
 - **Bodega por línea:** `id_bodega` va en el detalle del movimiento, no en la cabecera.
 - **Subtablas:** `inv_despachos_operario` e `inv_recepciones_compra` copian el `id_movimiento` del padre como PK y FK.
+- **`id_empleado` en movimientos automáticos (13-11-2026):** nullable solo en `RESERVA` y `LIBERACION`, que las dispara e-Commerce sin un empleado detrás (`NULL` = lo hizo el sistema). El `CHECK chk_empleado_requerido` lo exige en los demás tipos. Script `db/ddl/04_empleado_nullable.sql`; no depende de RRHH, porque la futura FK acepta `NULL`.
 - **Proveedor de la recepción:** el backend valida que `id_proveedor` coincida con el proveedor de la OC.
 
 ### Reglas de negocio
@@ -165,7 +166,6 @@ id_despacho → logistica, id_proveedor e id_oc → compras
 - **`DEVOLUCION`:** pendiente con Postventa si reingresa como disponible o queda en revisión.
 - **KPIs:** se definen más adelante con los datos que haya.
 - **Roles:** ver "Roles y permisos del módulo". Falta que RRHH cree nuestros roles y entregue el secreto del JWT.
-- **`id_empleado` en movimientos automáticos:** la columna es `NOT NULL`, pero una reserva o liberación la dispara e-Commerce sin un empleado detrás. Recomendado: volverla nullable (`NULL` = lo hizo el sistema), como en el primer DDL. Alternativa: un empleado "sistema" creado por RRHH.
 - **Idempotencia de la reserva:** un reintento con el mismo `id_pedido` no debe reservar dos veces. Lo seguro es un índice único parcial (una `RESERVA` por `id_pedido`), que es un cambio de DDL.
 - **Tipo de `id_despacho`:** nuestra columna es `int`, pero las guías de Logística tienen ID de texto (`GD-52341`).
 - **Diagrama draw.io:** quitar las tildes de `tipo_operacion`, corregir la errata "inv_movimientos", cambiar "Hereda de" por "FK a", agregar `cantidad_minima` y quitar `coleccion`, `edad_minima` y `tipo_construccion`.
@@ -214,7 +214,7 @@ Por decidir: si el rol `Administrador` de RRHH tiene acceso total en nuestros gu
 
 ### Integraciones sin rol humano
 
-Reservar, liberar y confirmar despachos o recepciones lo invocan e-Commerce y Logística, no un empleado. El JWT de RRHH no sirve ahí, porque identifica a una persona. Ver "`id_empleado` en movimientos automáticos" en las decisiones abiertas.
+Reservar, liberar y confirmar despachos o recepciones lo invocan e-Commerce y Logística, no un empleado. El JWT de RRHH no sirve ahí, porque identifica a una persona. Ver "`id_empleado` en movimientos automáticos" en las decisiones tomadas.
 
 **Credencial de servicio (decidido el 12-11-2026): API key por módulo.**
 - Cada módulo consumidor envía su clave como `Authorization: Bearer <clave>` (e-Commerce ya lo hace con `INVENTORY_API_TOKEN`).
@@ -320,7 +320,7 @@ Exige: integración con los maestros canónicos, al menos 1 escenario de integra
 
 | # | Tarea | Depende de |
 | --- | --- | --- |
-| S3.1 | **Reserva y liberación para e-Commerce.** `POST /movimientos/reserva` con `{ id_pedido, lineas: [{ id_producto, cantidad }] }`: un movimiento `RESERVA` `PENDIENTE`, todo o nada (409 si una línea no alcanza), idempotente por `id_pedido`. `POST /movimientos/liberacion` con `{ id_pedido }`: devuelve lo reservado, crea la `LIBERACION` y deja la reserva `ANULADO`. Usa `ReservaStrategy`. El `RegistrarReservaDto` actual recibe un solo producto: cambiarlo a `lineas` | Decidir `id_empleado` nullable e índice único (DDL) |
+| S3.1 | **Reserva y liberación para e-Commerce.** `POST /movimientos/reserva` con `{ id_pedido, lineas: [{ id_producto, cantidad }] }`: un movimiento `RESERVA` `PENDIENTE`, todo o nada (409 si una línea no alcanza), idempotente por `id_pedido`. `POST /movimientos/liberacion` con `{ id_pedido }`: devuelve lo reservado, crea la `LIBERACION` y deja la reserva `ANULADO`. Usa `ReservaStrategy`. El `RegistrarReservaDto` actual recibe un solo producto: cambiarlo a `lineas` | `id_empleado` nullable (rama `api-key-integraciones`, falta ejecutarlo en Neon) e índice único (DDL) |
 | S3.2 | **Autenticación y roles.** Guard de JWT (lee `employeeId` y `role`, secreto en `.env`), guard de roles con los nombres en constantes, tokens de prueba solo en desarrollo y sacar `id_empleado` del body | Se puede avanzar ya; el secreto y los nombres finales los da RRHH |
 | S3.3 | **Credencial de servicio** para los endpoints de integración. **Guard listo (12-11, rama `api-key-integraciones`):** `ApiKeyGuard` con claves por módulo en `INTEGRACION_API_KEYS`. Falta aplicarlo a los endpoints de S3.1, S3.4 y S3.5 cuando existan, y generar y entregar las claves a cada grupo | Sin bloqueos |
 | S3.4 | **Egreso por despacho.** `POST /movimientos/egreso` con `{ id_pedido, id_despacho }`: descuenta lo reservado, crea el `EGRESO` y su fila en `inv_despachos_operario`, y deja la reserva `COMPLETADO` | S3.1 y acuerdos con Logística |

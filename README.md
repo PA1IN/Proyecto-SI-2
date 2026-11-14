@@ -20,7 +20,7 @@ El módulo es dueño del **maestro de productos** (`id_producto`) y del **stock 
 ```
 Backend/
 ├─ db/
-│  ├─ ddl/        tablas, triggers y columna de imagen  (schema inventario)
+│  ├─ ddl/        tablas, triggers, imagen e id_empleado opcional  (schema inventario)
 │  ├─ dml/        temas, bodegas, 120 productos, stock inicial e imágenes
 │  ├─ local/      crea el schema en el Postgres de Docker
 │  └─ test/       validar_ddl.sql (prueba restricciones y triggers, termina en ROLLBACK)
@@ -56,7 +56,7 @@ docker compose up -d
 La primera vez, Docker crea la base `si2_local` y el schema `inventario`. Después hay que cargar las tablas y los datos con los scripts del repo, en este orden:
 
 ```bash
-docker exec inventario-postgres psql -U inventario -d si2_local -v ON_ERROR_STOP=1 -f /db/ddl/01_tablas.sql -f /db/ddl/02_triggers.sql -f /db/ddl/03_imagen_producto.sql -f /db/dml/01_temas.sql -f /db/dml/02_bodegas.sql -f /db/dml/03_productos.sql -f /db/dml/04_stock_inicial.sql -f /db/dml/05_imagenes_productos.sql
+docker exec inventario-postgres psql -U inventario -d si2_local -v ON_ERROR_STOP=1 -f /db/ddl/01_tablas.sql -f /db/ddl/02_triggers.sql -f /db/ddl/03_imagen_producto.sql -f /db/ddl/04_empleado_nullable.sql -f /db/dml/01_temas.sql -f /db/dml/02_bodegas.sql -f /db/dml/03_productos.sql -f /db/dml/04_stock_inicial.sql -f /db/dml/05_imagenes_productos.sql
 ```
 
 Opcional: `-f /db/test/validar_ddl.sql` revisa las restricciones y los triggers sin dejar datos.
