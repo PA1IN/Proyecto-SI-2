@@ -12,8 +12,9 @@ export class InvMovimiento {
   id_movimiento: number;
 
   // TODO Sprint 3: FK a rrhh; en el paso 8 sale del token.
-  @Column({ type: 'int' })
-  id_empleado: number;
+  // NULL solo en RESERVA y LIBERACION, que las dispara e-Commerce (db/ddl/04).
+  @Column({ type: 'int', nullable: true })
+  id_empleado: number | null;
 
   @Column({ type: 'int', nullable: true })
   id_pedido: number | null;
