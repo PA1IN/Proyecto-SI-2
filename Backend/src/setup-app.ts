@@ -25,6 +25,8 @@ export function setupApp(app: INestApplication) {
       .setTitle('API Inventario Lesgo')
       .setDescription('Módulo de Inventario del mini-ERP (Grupo 2)')
       .setVersion('1.0')
+      // Para probar desde Swagger los endpoints con API key (botón Authorize).
+      .addBearerAuth()
       .build(),
   );
   SwaggerModule.setup('api/docs', app, document);
