@@ -128,6 +128,7 @@ id_despacho → logistica, id_proveedor e id_oc → compras
 - **Bodega por línea:** `id_bodega` va en el detalle del movimiento, no en la cabecera.
 - **Subtablas:** `inv_despachos_operario` e `inv_recepciones_compra` copian el `id_movimiento` del padre como PK y FK.
 - **`id_empleado` en movimientos automáticos (13-11-2026):** nullable solo en `RESERVA` y `LIBERACION`, que las dispara e-Commerce sin un empleado detrás (`NULL` = lo hizo el sistema). El `CHECK chk_empleado_requerido` lo exige en los demás tipos. Script `db/ddl/04_empleado_nullable.sql`; no depende de RRHH, porque la futura FK acepta `NULL`.
+- **Una sola reserva por pedido (14-11-2026):** índice único parcial `uq_reserva_por_pedido` sobre `id_pedido` en las filas `RESERVA` (`db/ddl/05_reserva_unica.sql`). Hace idempotente la reserva aunque dos reintentos lleguen a la vez: la segunda falla en la BD y el backend devuelve la existente. Incluye las `ANULADO`: acordado con e-Commerce que un pedido cancelado no se reactiva; se crea otro con un id nuevo.
 - **Proveedor de la recepción:** el backend valida que `id_proveedor` coincida con el proveedor de la OC.
 
 ### Reglas de negocio
@@ -166,7 +167,6 @@ id_despacho → logistica, id_proveedor e id_oc → compras
 - **`DEVOLUCION`:** pendiente con Postventa si reingresa como disponible o queda en revisión.
 - **KPIs:** se definen más adelante con los datos que haya.
 - **Roles:** ver "Roles y permisos del módulo". Falta que RRHH cree nuestros roles y entregue el secreto del JWT.
-- **Idempotencia de la reserva:** un reintento con el mismo `id_pedido` no debe reservar dos veces. Lo seguro es un índice único parcial (una `RESERVA` por `id_pedido`), que es un cambio de DDL.
 - **Tipo de `id_despacho`:** nuestra columna es `int`, pero las guías de Logística tienen ID de texto (`GD-52341`).
 - **Diagrama draw.io:** quitar las tildes de `tipo_operacion`, corregir la errata "inv_movimientos", cambiar "Hereda de" por "FK a", agregar `cantidad_minima` y quitar `coleccion`, `edad_minima` y `tipo_construccion`.
 
@@ -220,7 +220,7 @@ Reservar, liberar y confirmar despachos o recepciones lo invocan e-Commerce y Lo
 - Cada módulo consumidor envía su clave como `Authorization: Bearer <clave>` (e-Commerce ya lo hace con `INVENTORY_API_TOKEN`).
 - Las claves van en `.env`, en `INTEGRACION_API_KEYS=modulo:clave,modulo:clave` (16 caracteres o más por clave). Se entregan a cada grupo por fuera del repo.
 - `ApiKeyGuard` (`Backend/src/auth/api-key.guard.ts`) responde 401 si la clave falta o no coincide, y deja el nombre del módulo en `request.moduloCliente`. Con la variable vacía rechaza todo.
-- Se aplica con `@UseGuards(ApiKeyGuard)` en cada endpoint de integración. Al 12-11 ningún endpoint lo usa todavía: se conecta al crear la reserva y la liberación (S3.1).
+- Se aplica con `@UseGuards(ApiKeyGuard)` y `@ApiBearerAuth()` en cada endpoint de integración. Ya lo usan `POST /movimientos/reserva` y `/movimientos/liberacion` (rama `reserva-liberacion`). Swagger tiene el botón Authorize para probarlos.
 
 ## Coordinación con otros equipos
 
@@ -268,6 +268,7 @@ Al 11-11-2026 existen `config/`, `common/`, `health/`, `database/`, `catalogo/`,
 - `GET` y `POST /bodegas`; `PATCH /bodegas/:id`
 - `GET /stock`, `/stock/:idProducto`
 - `GET /movimientos`, `/movimientos/:id`; `POST /movimientos/ingreso`, `/movimientos/ajuste`
+- En la rama `reserva-liberacion`: `POST /movimientos/reserva` y `/movimientos/liberacion` (con `ApiKeyGuard`)
 
 ### Reglas técnicas (lecciones del repo de referencia heuremi/backend-inventario)
 
@@ -304,7 +305,6 @@ Pendientes del plan base:
 - **Paso 8, autenticación:** ahora es la tarea S3.2.
 - **Paso 9, paginación:** `GET /movimientos` está limitado a los 100 más recientes.
 - **`/health` con `SELECT 1`:** 200 `{ status: 'ok', bd: 'ok' }`, o 503 si no hay conexión.
-- **Tests de `calcularAsignacionReserva`:** alcanza una bodega, reparte entre dos, empate por id menor e insuficiente da `null`. Hacerlos antes de usar la reserva.
 - **`npm audit fix`** (sin `--force`) en su propia rama: 3 vulnerabilidades altas (`body-parser` y `multer`, vía `@nestjs/platform-express`).
 - **Colección Postman:** se borró de `main` en el commit `0da7e73`. Se recupera con `git checkout 8d5c97a -- Backend/postman/inventario.postman_collection.json` si se necesita.
 
@@ -320,7 +320,7 @@ Exige: integración con los maestros canónicos, al menos 1 escenario de integra
 
 | # | Tarea | Depende de |
 | --- | --- | --- |
-| S3.1 | **Reserva y liberación para e-Commerce.** `POST /movimientos/reserva` con `{ id_pedido, lineas: [{ id_producto, cantidad }] }`: un movimiento `RESERVA` `PENDIENTE`, todo o nada (409 si una línea no alcanza), idempotente por `id_pedido`. `POST /movimientos/liberacion` con `{ id_pedido }`: devuelve lo reservado, crea la `LIBERACION` y deja la reserva `ANULADO`. Usa `ReservaStrategy`. El `RegistrarReservaDto` actual recibe un solo producto: cambiarlo a `lineas` | `id_empleado` nullable (rama `api-key-integraciones`, falta ejecutarlo en Neon) e índice único (DDL) |
+| S3.1 | **Reserva y liberación para e-Commerce.** `POST /movimientos/reserva` con `{ id_pedido, lineas: [{ id_producto, cantidad }] }`: un movimiento `RESERVA` `PENDIENTE`, todo o nada (409 si una línea no alcanza), idempotente por `id_pedido`. `POST /movimientos/liberacion` con `{ id_pedido }`: devuelve lo reservado, crea la `LIBERACION` y deja la reserva `ANULADO`. Usa `ReservaStrategy`. El `RegistrarReservaDto` actual recibe un solo producto: cambiarlo a `lineas` | **Implementado en `reserva-liberacion` (14-11).** Falta ejecutar `db/ddl/05` en Neon, entregar la API key a e-Commerce y probar con ellos |
 | S3.2 | **Autenticación y roles.** Guard de JWT (lee `employeeId` y `role`, secreto en `.env`), guard de roles con los nombres en constantes, tokens de prueba solo en desarrollo y sacar `id_empleado` del body | Se puede avanzar ya; el secreto y los nombres finales los da RRHH |
 | S3.3 | **Credencial de servicio** para los endpoints de integración. **Guard listo (12-11, rama `api-key-integraciones`):** `ApiKeyGuard` con claves por módulo en `INTEGRACION_API_KEYS`. Falta aplicarlo a los endpoints de S3.1, S3.4 y S3.5 cuando existan, y generar y entregar las claves a cada grupo | Sin bloqueos |
 | S3.4 | **Egreso por despacho.** `POST /movimientos/egreso` con `{ id_pedido, id_despacho }`: descuenta lo reservado, crea el `EGRESO` y su fila en `inv_despachos_operario`, y deja la reserva `COMPLETADO` | S3.1 y acuerdos con Logística |
@@ -329,7 +329,7 @@ Exige: integración con los maestros canónicos, al menos 1 escenario de integra
 | S3.7 | **Front:** mostrar la imagen del producto, inicio de sesión con RRHH y pantallas de ajuste e historial | S3.2 para el login |
 | S3.8 | **Devoluciones** con Postventa | Reunión con Postventa |
 
-**Integración cruzada para la demo:** checkout de e-Commerce con nuestra reserva (S3.1). Orden acordado el 12-11: S3.3 (guard, hecho) → tests de `calcularAsignacionReserva` → S3.1. Lo demás (S3.2, S3.4, S3.6) espera las reuniones con RRHH y Logística.
+**Integración cruzada para la demo:** checkout de e-Commerce con nuestra reserva (S3.1). Orden acordado el 12-11: S3.3 (guard, hecho) → tests de `calcularAsignacionReserva` (hechos en `reserva-liberacion`) → S3.1. Lo demás (S3.2, S3.4, S3.6) espera las reuniones con RRHH y Logística.
 
 ## Material de referencia
 

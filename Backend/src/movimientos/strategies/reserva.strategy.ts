@@ -23,7 +23,7 @@ export class ReservaStrategy implements MovimientoStrategy {
 
     if (!asignaciones) {
       throw new ConflictException(
-        'Stock insuficiente para cubrir la reserva completa',
+        `Stock insuficiente para el producto ${context.idProducto}`,
       );
     }
 
