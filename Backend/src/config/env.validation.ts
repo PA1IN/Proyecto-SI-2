@@ -67,6 +67,13 @@ export class EnvironmentVariables {
       'INTEGRACION_API_KEYS debe tener el formato modulo:clave,modulo:clave (claves de 16 caracteres o más)',
   })
   INTEGRACION_API_KEYS: string = '';
+
+  //Secreto compartido con rrhh
+  //Vacío = rechaza cualquier jwt (401)
+  @Matches(/^$|^.{16,}$/, {
+    message: 'JWT_SECRET debe tener al menos 16 caracteres (o estar vacio)',
+  })
+  JWT_SECRET: string = '';
 }
 
 // Lo usa ConfigModule al arrancar: si una variable no es válida, la app no inicia.
