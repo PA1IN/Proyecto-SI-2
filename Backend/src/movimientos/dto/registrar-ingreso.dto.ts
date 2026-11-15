@@ -2,11 +2,12 @@ import { IsInt, IsNotEmpty, IsPositive } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class RegistrarIngresoDto {
+  /*
   @ApiProperty({ example: 1, description: 'Id del empleado' })
   @IsInt()
   @IsNotEmpty()
   id_empleado: number;
-
+  */
   @ApiProperty({ example: 5, description: 'Id del producto' })
   @IsInt()
   @IsNotEmpty()

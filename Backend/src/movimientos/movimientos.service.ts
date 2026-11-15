@@ -38,7 +38,7 @@ export class MovimientosService {
     return mov;
   }
 
-  async registrarIngreso(dto: RegistrarIngresoDto): Promise<InvMovimiento> {
+  async registrarIngreso(dto: RegistrarIngresoDto, idEmpleado: number,): Promise<InvMovimiento> {
     return this.dataSource.transaction(async (manager) => {
       const producto = await manager.findOneBy(InvProducto, {
         id_producto: dto.id_producto,
@@ -66,7 +66,7 @@ export class MovimientosService {
       const movimiento = await this.movimientoRepo.crearCabecera(
         {
           // TODO paso 8: sacarlo del token.
-          id_empleado: dto.id_empleado,
+          id_empleado: idEmpleado,
           tipo_operacion: 'INGRESO',
           estado: 'COMPLETADO',
         },
@@ -264,7 +264,7 @@ export class MovimientosService {
     });
   }
 
-  async registrarAjuste(dto: RegistrarAjusteDto): Promise<InvMovimiento> {
+  async registrarAjuste(dto: RegistrarAjusteDto, idEmpleado: number): Promise<InvMovimiento> {
     return this.dataSource.transaction(async (manager) => {
       const producto = await manager.findOneBy(InvProducto, {
         id_producto: dto.id_producto,
@@ -303,7 +303,7 @@ export class MovimientosService {
       const movimiento = await this.movimientoRepo.crearCabecera(
         {
           // TODO paso 8: sacarlo del token.
-          id_empleado: dto.id_empleado,
+          id_empleado: idEmpleado,
           tipo_operacion: 'AJUSTE',
           estado: 'COMPLETADO',
         },
