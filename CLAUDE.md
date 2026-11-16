@@ -104,7 +104,8 @@ Contexto y reglas de trabajo para retomar el proyecto en cualquier sesión. Resp
 ```
 -- Sprint 2 (schema inventario)
 inv_temas(id_tema serial PK, nombre_tema)
-inv_producto(id_producto serial PK, id_tema FK, sku UNIQUE, nombre_set, cant_piezas, activo, url_imagen null)
+inv_producto(id_producto serial PK, id_tema FK, sku UNIQUE, nombre_set, cant_piezas, activo, url_imagen null,
+             peso_unitario_kg null, largo_cm null, alto_cm null, ancho_cm null)  -- numeric(10,2), > 0
 inv_bodegas(id_bodega serial PK, nombre_bodega, ubicacion_fisica)
 inv_stock_bodega(id_producto PK/FK, id_bodega PK/FK, cantidad_disponible, cantidad_reservada, cantidad_minima)
 inv_movimiento(id_movimiento serial PK, id_empleado int null (solo en RESERVA y LIBERACION), id_pedido int null, id_devolucion int null, fecha_registro, tipo_operacion, estado)
@@ -121,6 +122,9 @@ id_despacho → logistica, id_proveedor e id_oc → compras
 
 - **Claves del producto:** `id_producto` es `serial` (PK canónica). `sku` es la clave de negocio única (el número de set de LEGO).
 - **Imagen:** `url_imagen` guarda solo la URL, nunca el archivo (acordado con e-Commerce el 09-11-2026). Los productos del dataset usan la URL de Rebrickable (columna `img_url` de `sets.csv`). Para productos propios se puede usar Cloudinary; la subida de archivos no está implementada y la API recibe solo la URL (`https`).
+- **Peso y medidas de la caja (16-11-2026):** `peso_unitario_kg`, `largo_cm`, `alto_cm` y `ancho_cm` en `inv_producto`, con los nombres y la precisión de Logística (`numeric(10,2)`, mayores que 0). Somos dueños del dato; el peso volumétrico, la tarifa y los bultos los calcula y guarda Logística.
+  - **Estimación acordada con Logística:** peso = 0,20 + 0,0011 × piezas (kg, 2 decimales); caja por rango de piezas: hasta 300 → 26 × 19 × 6, hasta 1.000 → 38 × 26 × 7, hasta 2.500 → 48 × 38 × 9, hasta 5.000 → 58 × 48 × 12, más → 70 × 50 × 17 (cm).
+  - La fórmula está en `src/catalogo/utils/estimar-medidas.util.ts` (la usa `POST /productos` para cada medida que no venga) y en `db/dml/06_medidas_productos.sql` (productos existentes). Si cambia una, cambiar la otra. Los valores reales se cargan con `PATCH /productos/:id`.
 - **Precio:** lo maneja **e-Commerce** (`CATALOGO.precio_venta`). `inv_producto` no guarda precio y los KPIs propios van en unidades.
   - Un producto se vende solo si está activo, tiene precio en `CATALOGO` y stock disponible mayor a 0.
 - **`tipo_operacion`:** `INGRESO`, `EGRESO`, `RESERVA`, `LIBERACION`, `AJUSTE`, `DEVOLUCION`. Van sin tildes en la BD.
@@ -236,7 +240,8 @@ Reservar, liberar y confirmar despachos o recepciones lo invocan e-Commerce y Lo
   - **Su adaptador** (`inventoryService.js`) llama a una URL de listado y otra de detalle, mapea campos con `INVENTORY_FIELD_MAP` y manda `INVENTORY_API_TOKEN` como `Bearer`.
   - **Diferencias que deben corregir (visto el 08-11):** esperan `id_producto` como UUID (`ecom_detalle_pedido.id_producto UUID`) y un precio desde Inventario; no reservan, solo comparan contra el stock; no tienen cancelación de pedidos; usan montos con decimales.
   - **Su tabla de pedidos:** `ecommerce_ventas.ecom_pedido` (PK `INTEGER`). Falta confirmar que exista en Neon.
-- **Logística** (https://github.com/ElMatsiii/ERP-Logistica), visto el 08-11:
+- **Logística** (https://github.com/ElMatsiii/ERP-Logistica), visto el 08-11 y propuesta del 13-11 (`Propuesta_Integracion_Logistica_Inventario.pdf`):
+  - **Acordado el 16-11:** peso y medidas en nuestro maestro, con la estimación por piezas. Ellos guardan los bultos (`log_bulto`) y calculan el peso volumétrico.
   - Usan `id_producto INTEGER`, que calza. Hoy no nos llaman: registran `SALIDA` y `ENTRADA` en su tabla de prueba.
   - **Por acordar:** que el despacho llame a nuestro egreso por `id_pedido`; el tipo de sus IDs (guías y OTs de texto, `id_pedido` de texto); el despacho parcial (su OT tiene estado `PARCIAL`); y que la recepción de OC envíe `id_proveedor` y `nro_guia_proveedor`, que su `log_recepcion` no guarda.
 - **Compras:** FKs de `id_proveedor` e `id_oc`, y cómo reciben la alerta de stock bajo (`GET /stock` ya trae `bodegas_bajo_minimo`). Sin reunión todavía.

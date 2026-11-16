@@ -20,8 +20,8 @@ El módulo es dueño del **maestro de productos** (`id_producto`) y del **stock 
 ```
 Backend/
 ├─ db/
-│  ├─ ddl/        tablas, triggers y cambios del Sprint 3 (03 a 05)  (schema inventario)
-│  ├─ dml/        temas, bodegas, 120 productos, stock inicial e imágenes
+│  ├─ ddl/        tablas, triggers y cambios del Sprint 3 (03 a 06)  (schema inventario)
+│  ├─ dml/        temas, bodegas, 120 productos, stock inicial, imágenes y medidas estimadas
 │  ├─ local/      crea el schema en el Postgres de Docker
 │  └─ test/       validar_ddl.sql (prueba restricciones y triggers, termina en ROLLBACK)
 ├─ src/
@@ -56,7 +56,7 @@ docker compose up -d
 La primera vez, Docker crea la base `si2_local` y el schema `inventario`. Después hay que cargar las tablas y los datos con los scripts del repo, en este orden:
 
 ```bash
-docker exec inventario-postgres psql -U inventario -d si2_local -v ON_ERROR_STOP=1 -f /db/ddl/01_tablas.sql -f /db/ddl/02_triggers.sql -f /db/ddl/03_imagen_producto.sql -f /db/ddl/04_empleado_nullable.sql -f /db/ddl/05_reserva_unica.sql -f /db/dml/01_temas.sql -f /db/dml/02_bodegas.sql -f /db/dml/03_productos.sql -f /db/dml/04_stock_inicial.sql -f /db/dml/05_imagenes_productos.sql
+docker exec inventario-postgres psql -U inventario -d si2_local -v ON_ERROR_STOP=1 -f /db/ddl/01_tablas.sql -f /db/ddl/02_triggers.sql -f /db/ddl/03_imagen_producto.sql -f /db/ddl/04_empleado_nullable.sql -f /db/ddl/05_reserva_unica.sql -f /db/ddl/06_medidas_producto.sql -f /db/dml/01_temas.sql -f /db/dml/02_bodegas.sql -f /db/dml/03_productos.sql -f /db/dml/04_stock_inicial.sql -f /db/dml/05_imagenes_productos.sql -f /db/dml/06_medidas_productos.sql
 ```
 
 Opcional: `-f /db/test/validar_ddl.sql` revisa las restricciones y los triggers sin dejar datos.
@@ -151,7 +151,7 @@ Todas las tablas van en el schema `inventario`:
 | Tabla | Contenido |
 | --- | --- |
 | `inv_temas` | Temas de LEGO (Star Wars, City, …) |
-| `inv_producto` | Maestro de productos. `sku` es el número de set y es único. `url_imagen` guarda solo la URL de la imagen |
+| `inv_producto` | Maestro de productos. `sku` es el número de set y es único. `url_imagen` guarda solo la URL de la imagen. `peso_unitario_kg`, `largo_cm`, `alto_cm` y `ancho_cm` son de la caja, para Logística; si no se envían al crear, se estiman por cantidad de piezas |
 | `inv_bodegas` | Bodegas físicas |
 | `inv_stock_bodega` | Stock por producto y bodega: disponible, reservado y mínimo |
 | `inv_movimiento` | Cabecera de cada movimiento: tipo, estado, empleado y referencias a otros módulos |
