@@ -461,3 +461,160 @@ describe('MovimientosService.obtenerReservaPorPedido', () => {
     );
   });
 });
+
+describe('MovimientosService.registrarDespacho', () => {
+  const despachoDto = {
+    id_despacho: 'GD-52341',
+    id_pedido: 1001,
+    id_empleado: 7,
+    lineas: [
+      { id_producto: 1, cantidad: 10 },
+      { id_producto: 2, cantidad: 1 },
+    ],
+  };
+  const reservaPendiente = () => ({
+    id_movimiento: 30,
+    id_pedido: 1001,
+    estado: 'PENDIENTE',
+    detalles: [
+      { id_detalle: 1, id_producto: 1, id_bodega: 2, cantidad: 7 },
+      { id_detalle: 2, id_producto: 1, id_bodega: 5, cantidad: 23 },
+      { id_detalle: 3, id_producto: 2, id_bodega: 4, cantidad: 1 },
+    ],
+  });
+
+  function crearServicioDespacho(
+    reserva: object | null,
+    opciones: { egresoPrevio?: object | null; stockOk?: boolean } = {},
+  ) {
+    const dataSource = {
+      transaction: (fn: (m: EntityManager) => unknown) =>
+        fn({} as EntityManager),
+    } as unknown as DataSource;
+    const stockRepo = {
+      descontarReservado: vi.fn().mockResolvedValue(opciones.stockOk ?? true),
+      liberarReservado: vi.fn().mockResolvedValue(true),
+    };
+    let siguienteId = 40;
+    const movimientoRepo = {
+      findReservaParaActualizar: vi.fn().mockResolvedValue(reserva),
+      findEgresoPorDespacho: vi
+        .fn()
+        .mockResolvedValue(opciones.egresoPrevio ?? null),
+      findPorPedido: vi.fn().mockResolvedValue(null),
+      crearCabecera: vi.fn(async (datos) => ({
+        id_movimiento: siguienteId++,
+        ...datos,
+      })),
+      crearDetalle: vi.fn(async (datos) => ({ id_detalle: 9, ...datos })),
+      crearDespacho: vi.fn(),
+      actualizarEstado: vi.fn(),
+    };
+    const service = new MovimientosService(
+      dataSource,
+      stockRepo as unknown as StockRepository,
+      movimientoRepo as unknown as MovimientoRepository,
+      {} as ReservaStrategy,
+    );
+    return { service, stockRepo, movimientoRepo };
+  }
+
+  it('despacho parcial: EGRESO de lo recolectado, LIBERACION del resto y reserva COMPLETADO', async () => {
+    const { service, stockRepo, movimientoRepo } =
+      crearServicioDespacho(reservaPendiente());
+
+    const res = await service.registrarDespacho(despachoDto);
+
+    expect(
+      stockRepo.descontarReservado.mock.calls.map((c) => c.slice(0, 3)),
+    ).toEqual([
+      [1, 2, 7],
+      [1, 5, 3],
+      [2, 4, 1],
+    ]);
+    expect(
+      stockRepo.liberarReservado.mock.calls.map((c) => c.slice(0, 3)),
+    ).toEqual([[1, 5, 20]]);
+    expect(res.egreso).toMatchObject({
+      id_movimiento: 40,
+      tipo_operacion: 'EGRESO',
+      id_empleado: 7,
+      id_pedido: 1001,
+    });
+    expect(res.liberacion).toMatchObject({
+      tipo_operacion: 'LIBERACION',
+      detalles: [{ id_producto: 1, id_bodega: 5, cantidad: 20 }],
+    });
+    expect(movimientoRepo.crearDespacho).toHaveBeenCalledWith(
+      {
+        id_movimiento: 40,
+        id_despacho: 'GD-52341',
+        observaciones_picking: null,
+      },
+      expect.anything(),
+    );
+    expect(movimientoRepo.actualizarEstado).toHaveBeenCalledWith(
+      30,
+      'COMPLETADO',
+      expect.anything(),
+    );
+  });
+
+  it('despacho completo: sin LIBERACION', async () => {
+    const { service, stockRepo } = crearServicioDespacho(reservaPendiente());
+
+    const res = await service.registrarDespacho({
+      ...despachoDto,
+      lineas: [
+        { id_producto: 1, cantidad: 30 },
+        { id_producto: 2, cantidad: 1 },
+      ],
+    });
+
+    expect(res.liberacion).toBeNull();
+    expect(stockRepo.liberarReservado).not.toHaveBeenCalled();
+  });
+
+  it('si la guía ya se registró para el pedido, la devuelve sin tocar el stock', async () => {
+    const previo = { id_movimiento: 41, id_pedido: 1001 };
+    const { service, stockRepo, movimientoRepo } = crearServicioDespacho(
+      { ...reservaPendiente(), estado: 'COMPLETADO' },
+      { egresoPrevio: previo },
+    );
+
+    const res = await service.registrarDespacho(despachoDto);
+
+    expect(res.egreso).toBe(previo);
+    expect(stockRepo.descontarReservado).not.toHaveBeenCalled();
+    expect(movimientoRepo.crearCabecera).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [
+      'la guía ya se usó en otro pedido',
+      { egresoPrevio: { id_pedido: 999 } },
+      'PENDIENTE',
+    ],
+    ['la reserva ya se despachó con otra guía', {}, 'COMPLETADO'],
+    ['la reserva se anuló', {}, 'ANULADO'],
+    ['el stock reservado no coincide', { stockOk: false }, 'PENDIENTE'],
+  ])('responde 409 si %s', async (_caso, opciones, estado) => {
+    const { service, movimientoRepo } = crearServicioDespacho(
+      { ...reservaPendiente(), estado },
+      opciones,
+    );
+
+    await expect(service.registrarDespacho(despachoDto)).rejects.toThrow(
+      ConflictException,
+    );
+    expect(movimientoRepo.actualizarEstado).not.toHaveBeenCalled();
+  });
+
+  it('responde 404 si el pedido no tiene reserva', async () => {
+    const { service } = crearServicioDespacho(null);
+
+    await expect(service.registrarDespacho(despachoDto)).rejects.toThrow(
+      NotFoundException,
+    );
+  });
+});

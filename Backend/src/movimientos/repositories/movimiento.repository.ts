@@ -7,6 +7,7 @@ import {
   TipoOperacion,
 } from '../entities/inv-movimiento.entity.js';
 import { InvDetalleMovimiento } from '../entities/inv-detalle-movimiento.entity.js';
+import { InvDespachoOperario } from '../entities/inv-despacho-operario.entity.js';
 
 @Injectable()
 export class MovimientoRepository {
@@ -66,11 +67,38 @@ export class MovimientoRepository {
       lock: { mode: 'pessimistic_write' },
     });
     if (reserva) {
+      // En el orden en que se reservaron: el despacho parcial descuenta en ese orden.
       reserva.detalles = await manager
         .getRepository(InvDetalleMovimiento)
-        .findBy({ id_movimiento: reserva.id_movimiento });
+        .find({
+          where: { id_movimiento: reserva.id_movimiento },
+          order: { id_detalle: 'ASC' },
+        });
     }
     return reserva;
+  }
+
+  async crearDespacho(
+    datos: Partial<InvDespachoOperario>,
+    manager: EntityManager,
+  ): Promise<InvDespachoOperario> {
+    const repo = manager.getRepository(InvDespachoOperario);
+    return repo.save(repo.create(datos));
+  }
+
+  // El EGRESO de una guía, con su detalle. id_despacho es UNIQUE: hay a lo más uno.
+  async findEgresoPorDespacho(
+    id_despacho: string,
+    manager: EntityManager,
+  ): Promise<InvMovimiento | null> {
+    const despacho = await manager
+      .getRepository(InvDespachoOperario)
+      .findOneBy({ id_despacho });
+    if (!despacho) return null;
+    return manager.getRepository(InvMovimiento).findOne({
+      where: { id_movimiento: despacho.id_movimiento },
+      relations: { detalles: true },
+    });
   }
 
   // El trigger solo permite cambiar el estado de un movimiento PENDIENTE.

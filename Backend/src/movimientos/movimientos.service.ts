@@ -3,7 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { DataSource, In, QueryFailedError } from 'typeorm';
+import { DataSource, EntityManager, In, QueryFailedError } from 'typeorm';
 import { InvProducto } from '../catalogo/entities/inv-producto.entity.js';
 import { InvBodegas } from '../stock/entities/inv-bodegas.entity.js';
 import { StockRepository } from '../stock/repositories/stock.repository.js';
@@ -13,6 +13,12 @@ import { RegistrarAjusteDto } from './dto/registrar-ajuste.dto.js';
 import { RegistrarReservaDto } from './dto/registrar-reserva.dto.js';
 import { LiberarReservaDto } from './dto/liberar-reserva.dto.js';
 import { ReservaPedido } from './interfaces/reserva-pedido.interface.js';
+import { RegistrarDespachoDto } from './dto/registrar-despacho.dto.js';
+import { ResultadoDespacho } from './interfaces/resultado-despacho.interface.js';
+import {
+  LineaStock,
+  repartirDespacho,
+} from './utils/repartir-despacho.util.js';
 import { ReservaStrategy } from './strategies/reserva.strategy.js';
 import { MovimientoRepository } from './repositories/movimiento.repository.js';
 
@@ -292,6 +298,141 @@ export class MovimientosService {
       );
       return liberacion;
     });
+  }
+
+  // Logística confirma la guía: EGRESO de lo recolectado y LIBERACION de lo que faltó, en una
+  // transacción; la reserva queda COMPLETADO. Idempotente por id_despacho.
+  async registrarDespacho(
+    dto: RegistrarDespachoDto,
+  ): Promise<ResultadoDespacho> {
+    return this.dataSource.transaction(async (manager) => {
+      // Bloquear la reserva serializa dos despachos del mismo pedido.
+      const reserva = await this.movimientoRepo.findReservaParaActualizar(
+        dto.id_pedido,
+        manager,
+      );
+      if (!reserva) {
+        throw new NotFoundException(
+          `El pedido ${dto.id_pedido} no tiene una reserva`,
+        );
+      }
+
+      const egresoPrevio = await this.movimientoRepo.findEgresoPorDespacho(
+        dto.id_despacho,
+        manager,
+      );
+      if (egresoPrevio) {
+        if (egresoPrevio.id_pedido !== dto.id_pedido) {
+          throw new ConflictException(
+            `La guía ${dto.id_despacho} ya se usó en el pedido ${egresoPrevio.id_pedido}`,
+          );
+        }
+        return {
+          id_despacho: dto.id_despacho,
+          egreso: egresoPrevio,
+          liberacion: await this.movimientoRepo.findPorPedido(
+            dto.id_pedido,
+            'LIBERACION',
+          ),
+        };
+      }
+      if (reserva.estado !== 'PENDIENTE') {
+        throw new ConflictException(
+          `La reserva del pedido ${dto.id_pedido} está ${reserva.estado}`,
+        );
+      }
+
+      const reparto = repartirDespacho(
+        reserva.detalles.map(({ id_producto, id_bodega, cantidad }) => ({
+          id_producto,
+          id_bodega,
+          cantidad,
+        })),
+        dto.lineas,
+      );
+
+      for (const linea of reparto.egreso) {
+        const ok = await this.stockRepo.descontarReservado(
+          linea.id_producto,
+          linea.id_bodega,
+          linea.cantidad,
+          manager,
+        );
+        if (!ok) throw this.stockInconsistente(linea);
+      }
+      for (const linea of reparto.liberacion) {
+        const ok = await this.stockRepo.liberarReservado(
+          linea.id_producto,
+          linea.id_bodega,
+          linea.cantidad,
+          manager,
+        );
+        if (!ok) throw this.stockInconsistente(linea);
+      }
+
+      const egreso = await this.crearMovimiento(
+        'EGRESO',
+        dto,
+        reparto.egreso,
+        manager,
+      );
+      await this.movimientoRepo.crearDespacho(
+        {
+          id_movimiento: egreso.id_movimiento,
+          id_despacho: dto.id_despacho,
+          observaciones_picking: dto.observaciones_picking ?? null,
+        },
+        manager,
+      );
+      const liberacion = reparto.liberacion.length
+        ? await this.crearMovimiento(
+            'LIBERACION',
+            dto,
+            reparto.liberacion,
+            manager,
+          )
+        : null;
+
+      await this.movimientoRepo.actualizarEstado(
+        reserva.id_movimiento,
+        'COMPLETADO',
+        manager,
+      );
+      return { id_despacho: dto.id_despacho, egreso, liberacion };
+    });
+  }
+
+  private async crearMovimiento(
+    tipo_operacion: 'EGRESO' | 'LIBERACION',
+    dto: RegistrarDespachoDto,
+    lineas: LineaStock[],
+    manager: EntityManager,
+  ): Promise<InvMovimiento> {
+    const movimiento = await this.movimientoRepo.crearCabecera(
+      {
+        id_empleado: dto.id_empleado,
+        id_pedido: dto.id_pedido,
+        tipo_operacion,
+        estado: 'COMPLETADO',
+      },
+      manager,
+    );
+    movimiento.detalles = [];
+    for (const linea of lineas) {
+      movimiento.detalles.push(
+        await this.movimientoRepo.crearDetalle(
+          { ...linea, id_movimiento: movimiento.id_movimiento },
+          manager,
+        ),
+      );
+    }
+    return movimiento;
+  }
+
+  private stockInconsistente(linea: LineaStock) {
+    return new ConflictException(
+      `El stock reservado del producto ${linea.id_producto} en la bodega ${linea.id_bodega} no coincide con la reserva`,
+    );
   }
 
   async registrarAjuste(dto: RegistrarAjusteDto): Promise<InvMovimiento> {
