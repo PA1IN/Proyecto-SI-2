@@ -110,7 +110,7 @@ inv_bodegas(id_bodega serial PK, nombre_bodega, ubicacion_fisica)
 inv_stock_bodega(id_producto PK/FK, id_bodega PK/FK, cantidad_disponible, cantidad_reservada, cantidad_minima)
 inv_movimiento(id_movimiento serial PK, id_empleado int null (solo en RESERVA y LIBERACION), id_pedido int null, id_devolucion int null, fecha_registro, tipo_operacion, estado)
 inv_detalles_movimiento(id_detalle serial PK, id_movimiento FK, id_producto FK, id_bodega FK, cantidad)
-inv_despachos_operario(id_movimiento PK/FK, id_despacho int UNIQUE, observaciones_picking)        -- vacía hasta el Sprint 3
+inv_despachos_operario(id_movimiento PK/FK, id_despacho varchar(50) UNIQUE, observaciones_picking)        -- vacía hasta el Sprint 3
 inv_recepciones_compra(id_movimiento PK/FK, id_proveedor int, id_oc int, nro_guia_proveedor, UNIQUE(id_oc, nro_guia_proveedor))  -- vacía hasta el Sprint 3
 
 -- Sprint 3 (cuando existan las tablas de los otros módulos): agregar las FKs con ALTER TABLE
@@ -133,6 +133,7 @@ id_despacho → logistica, id_proveedor e id_oc → compras
 - **Subtablas:** `inv_despachos_operario` e `inv_recepciones_compra` copian el `id_movimiento` del padre como PK y FK.
 - **`id_empleado` en movimientos automáticos (13-11-2026):** nullable solo en `RESERVA` y `LIBERACION`, que las dispara e-Commerce sin un empleado detrás (`NULL` = lo hizo el sistema). El `CHECK chk_empleado_requerido` lo exige en los demás tipos. Script `db/ddl/04_empleado_nullable.sql`; no depende de RRHH, porque la futura FK acepta `NULL`.
 - **Una sola reserva por pedido (14-11-2026):** índice único parcial `uq_reserva_por_pedido` sobre `id_pedido` en las filas `RESERVA` (`db/ddl/05_reserva_unica.sql`). Hace idempotente la reserva aunque dos reintentos lleguen a la vez: la segunda falla en la BD y el backend devuelve la existente. Incluye las `ANULADO`: acordado con e-Commerce que un pedido cancelado no se reactiva; se crea otro con un id nuevo.
+- **`id_despacho` como texto (16-11-2026):** `varchar(50)` con `UNIQUE`, guarda el id de la guía de Logística (`GD-52341`); el `UNIQUE` hace idempotente el despacho. Script `db/ddl/07_despacho_varchar.sql`.
 - **Proveedor de la recepción:** el backend valida que `id_proveedor` coincida con el proveedor de la OC.
 
 ### Reglas de negocio
@@ -171,7 +172,6 @@ id_despacho → logistica, id_proveedor e id_oc → compras
 - **`DEVOLUCION`:** pendiente con Postventa si reingresa como disponible o queda en revisión.
 - **KPIs:** se definen más adelante con los datos que haya.
 - **Roles:** ver "Roles y permisos del módulo". Falta que RRHH cree nuestros roles y entregue el secreto del JWT.
-- **Tipo de `id_despacho`:** nuestra columna es `int`, pero las guías de Logística tienen ID de texto (`GD-52341`).
 - **Diagrama draw.io:** quitar las tildes de `tipo_operacion`, corregir la errata "inv_movimientos", cambiar "Hereda de" por "FK a", agregar `cantidad_minima` y quitar `coleccion`, `edad_minima` y `tipo_construccion`.
 
 ## Roles y permisos del módulo (acordado el 09-11-2026; faltan detalles con RRHH)
