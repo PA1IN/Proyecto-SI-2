@@ -241,7 +241,9 @@ Reservar, liberar y confirmar despachos o recepciones lo invocan e-Commerce y Lo
   - **Diferencias que deben corregir (visto el 08-11):** esperan `id_producto` como UUID (`ecom_detalle_pedido.id_producto UUID`) y un precio desde Inventario; no reservan, solo comparan contra el stock; no tienen cancelación de pedidos; usan montos con decimales.
   - **Su tabla de pedidos:** `ecommerce_ventas.ecom_pedido` (PK `INTEGER`). Falta confirmar que exista en Neon.
 - **Logística** (https://github.com/ElMatsiii/ERP-Logistica), visto el 08-11 y propuesta del 13-11 (`Propuesta_Integracion_Logistica_Inventario.pdf`):
-  - **Acordado el 16-11:** peso y medidas en nuestro maestro, con la estimación por piezas. Ellos guardan los bultos (`log_bulto`) y calculan el peso volumétrico.
+  - **Acordado el 16-11:** peso y medidas en nuestro maestro, con la estimación por piezas. Ellos guardan los bultos (`log_bulto`) y calculan el peso volumétrico. Las 8 diferencias de su propuesta quedan cerradas (`id_despacho` texto, ubicación por bodega, despacho parcial en una llamada).
+  - **Para el picking:** `GET /reservas?id_pedido=` devuelve `{ id_pedido, id_movimiento, estado, fecha_registro, lineas: [{ id_producto, sku, nombre_set, id_bodega, nombre_bodega, ubicacion_fisica, cantidad }] }`. Su propuesta pedía un arreglo de líneas; lo envolvemos para incluir el `estado`.
+  - **Esperando su respuesta** (documento "Pendientes Inventario y Logística"): líneas completas en el despacho, una guía por pedido, `num_seguimiento`, y en la recepción los campos sin columna y el reintento.
   - Usan `id_producto INTEGER`, que calza. Hoy no nos llaman: registran `SALIDA` y `ENTRADA` en su tabla de prueba.
   - **Por acordar:** que el despacho llame a nuestro egreso por `id_pedido`; el tipo de sus IDs (guías y OTs de texto, `id_pedido` de texto); el despacho parcial (su OT tiene estado `PARCIAL`); y que la recepción de OC envíe `id_proveedor` y `nro_guia_proveedor`, que su `log_recepcion` no guarda.
 - **Compras:** FKs de `id_proveedor` e `id_oc`, y cómo reciben la alerta de stock bajo (`GET /stock` ya trae `bodegas_bajo_minimo`). Sin reunión todavía.
@@ -273,7 +275,8 @@ Al 11-11-2026 existen `config/`, `common/`, `health/`, `database/`, `catalogo/`,
 - `GET` y `POST /bodegas`; `PATCH /bodegas/:id`
 - `GET /stock`, `/stock/:idProducto`
 - `GET /movimientos`, `/movimientos/:id`; `POST /movimientos/ingreso`, `/movimientos/ajuste`
-- En la rama `reserva-liberacion`: `POST /movimientos/reserva` y `/movimientos/liberacion` (con `ApiKeyGuard`)
+- `POST /movimientos/reserva` y `/movimientos/liberacion` (con `ApiKeyGuard`, PR #20)
+- En la rama `integracion-logistica`: `GET /reservas?id_pedido=` (con `ApiKeyGuard`), peso y medidas en los GET de productos
 
 ### Reglas técnicas (lecciones del repo de referencia heuremi/backend-inventario)
 

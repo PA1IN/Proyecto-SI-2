@@ -399,3 +399,65 @@ describe('MovimientosService.liberarReserva', () => {
     expect(movimientoRepo.actualizarEstado).not.toHaveBeenCalled();
   });
 });
+
+describe('MovimientosService.obtenerReservaPorPedido', () => {
+  function crearServicioConsulta(reserva: object | null) {
+    const movimientoRepo = {
+      findPorPedido: vi.fn().mockResolvedValue(reserva),
+      findById: vi.fn().mockResolvedValue({
+        detalles: [
+          {
+            id_producto: 4,
+            id_bodega: 3,
+            cantidad: 2,
+            producto: { sku: '75288-1', nombre_set: 'AT-AT' },
+            bodega: { nombre_bodega: 'Norte', ubicacion_fisica: 'Antofagasta' },
+          },
+        ],
+      }),
+    };
+    const service = new MovimientosService(
+      {} as DataSource,
+      {} as StockRepository,
+      movimientoRepo as unknown as MovimientoRepository,
+      {} as ReservaStrategy,
+    );
+    return { service, movimientoRepo };
+  }
+
+  it('devuelve el estado y cada línea con su producto y bodega', async () => {
+    const fecha = new Date('2026-11-16T12:00:00Z');
+    const { service, movimientoRepo } = crearServicioConsulta({
+      id_movimiento: 30,
+      estado: 'PENDIENTE',
+      fecha_registro: fecha,
+    });
+
+    await expect(service.obtenerReservaPorPedido(1001)).resolves.toEqual({
+      id_pedido: 1001,
+      id_movimiento: 30,
+      estado: 'PENDIENTE',
+      fecha_registro: fecha,
+      lineas: [
+        {
+          id_producto: 4,
+          sku: '75288-1',
+          nombre_set: 'AT-AT',
+          id_bodega: 3,
+          nombre_bodega: 'Norte',
+          ubicacion_fisica: 'Antofagasta',
+          cantidad: 2,
+        },
+      ],
+    });
+    expect(movimientoRepo.findPorPedido).toHaveBeenCalledWith(1001, 'RESERVA');
+  });
+
+  it('responde 404 si el pedido no tiene reserva', async () => {
+    const { service } = crearServicioConsulta(null);
+
+    await expect(service.obtenerReservaPorPedido(1001)).rejects.toThrow(
+      NotFoundException,
+    );
+  });
+});

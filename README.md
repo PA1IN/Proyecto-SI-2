@@ -113,6 +113,7 @@ Todos van con el prefijo `/api/v1`.
 | `POST` | `/movimientos/ajuste` | Registra un ajuste de stock (positivo o negativo; 409 si no alcanza) |
 | `POST` | `/movimientos/reserva` | Reserva el stock de un pedido de e-Commerce. Requiere API key (`Authorization: Bearer`). Todo o nada (409 si una línea no alcanza) e idempotente por `id_pedido`; un pedido cancelado da 409 |
 | `POST` | `/movimientos/liberacion` | Libera la reserva de un pedido cancelado: devuelve el stock a las mismas bodegas y anula la reserva. Requiere API key. Idempotente; 409 si ya se despachó |
+| `GET` | `/reservas?id_pedido=` | La reserva de un pedido: estado y, por línea, producto, bodega, ubicación y cantidad. Para el picking de Logística. Requiere API key; 404 si el pedido no tiene reserva |
 
 ### Ejemplos de body
 

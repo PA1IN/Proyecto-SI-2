@@ -12,6 +12,7 @@ import { RegistrarIngresoDto } from './dto/registrar-ingreso.dto.js';
 import { RegistrarAjusteDto } from './dto/registrar-ajuste.dto.js';
 import { RegistrarReservaDto } from './dto/registrar-reserva.dto.js';
 import { LiberarReservaDto } from './dto/liberar-reserva.dto.js';
+import { ReservaPedido } from './interfaces/reserva-pedido.interface.js';
 import { ReservaStrategy } from './strategies/reserva.strategy.js';
 import { MovimientoRepository } from './repositories/movimiento.repository.js';
 
@@ -93,6 +94,35 @@ export class MovimientosService {
       movimiento.detalles = [detalle];
       return movimiento;
     });
+  }
+
+  async obtenerReservaPorPedido(idPedido: number): Promise<ReservaPedido> {
+    const reserva = await this.movimientoRepo.findPorPedido(
+      idPedido,
+      'RESERVA',
+    );
+    if (!reserva) {
+      throw new NotFoundException(`El pedido ${idPedido} no tiene una reserva`);
+    }
+    // findById trae el producto y la bodega de cada línea.
+    const { detalles } = (await this.movimientoRepo.findById(
+      reserva.id_movimiento,
+    ))!;
+    return {
+      id_pedido: idPedido,
+      id_movimiento: reserva.id_movimiento,
+      estado: reserva.estado,
+      fecha_registro: reserva.fecha_registro,
+      lineas: detalles.map((d) => ({
+        id_producto: d.id_producto,
+        sku: d.producto.sku,
+        nombre_set: d.producto.nombre_set,
+        id_bodega: d.id_bodega,
+        nombre_bodega: d.bodega.nombre_bodega,
+        ubicacion_fisica: d.bodega.ubicacion_fisica,
+        cantidad: d.cantidad,
+      })),
+    };
   }
 
   // Todo o nada: si una línea no alcanza, ReservaStrategy lanza 409 y se deshace todo.
