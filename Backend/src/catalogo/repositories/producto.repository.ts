@@ -43,6 +43,9 @@ export class ProductoRepository {
   async findConStock(id_producto?: number): Promise<ProductoConStock[]> {
     return this.ormRepo.query(
       `SELECT p.id_producto, p.id_tema, p.sku, p.nombre_set, p.cant_piezas, p.activo, p.url_imagen,
+              -- ::float8 para que pg las devuelva como número y no como texto.
+              p.peso_unitario_kg::float8 AS peso_unitario_kg, p.largo_cm::float8 AS largo_cm,
+              p.alto_cm::float8 AS alto_cm, p.ancho_cm::float8 AS ancho_cm,
               json_build_object('id_tema', t.id_tema, 'nombre_tema', t.nombre_tema) AS tema,
               COALESCE(SUM(s.cantidad_disponible), 0)::int AS cantidad_disponible
        FROM inventario.inv_producto p

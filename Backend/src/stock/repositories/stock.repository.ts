@@ -96,6 +96,29 @@ export class StockRepository {
     return (result.affected ?? 0) > 0;
   }
 
+  // Despacho: lo reservado sale de la bodega (el disponible ya se descontó al reservar).
+  // Condicional: si lo reservado no alcanza (datos inconsistentes), no toca nada y devuelve false.
+  async descontarReservado(
+    idProducto: number,
+    idBodega: number,
+    cantidad: number,
+    manager: EntityManager,
+  ): Promise<boolean> {
+    const result = await this.getManager(manager)
+      .createQueryBuilder()
+      .update(InvStockBodega)
+      .set({ cantidad_reservada: () => 'cantidad_reservada - :cantidad' })
+      .setParameter('cantidad', cantidad)
+      .where('id_producto = :idProducto AND id_bodega = :idBodega', {
+        idProducto,
+        idBodega,
+      })
+      .andWhere('cantidad_reservada >= :cantidad')
+      .execute();
+
+    return (result.affected ?? 0) > 0;
+  }
+
   // Devuelve lo reservado a disponible. Condicional como la reserva: si lo reservado no
   // alcanza (datos inconsistentes), no toca nada y devuelve false.
   async liberarReservado(
