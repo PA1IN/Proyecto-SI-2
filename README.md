@@ -25,9 +25,10 @@ Backend/
 │  ├─ local/      crea el schema en el Postgres de Docker
 │  └─ test/       validar_ddl.sql (prueba restricciones y triggers, termina en ROLLBACK)
 ├─ src/
+│  ├─ auth/         API key de los módulos que nos llaman
 │  ├─ catalogo/     productos y temas
 │  ├─ stock/        bodegas y stock por bodega
-│  ├─ movimientos/  ingresos, ajustes e historial
+│  ├─ movimientos/  ingresos, ajustes, historial, reservas, despachos y recepciones
 │  ├─ health/       estado del servicio
 │  ├─ common/       filtro global de errores
 │  ├─ config/       validación de variables de entorno
@@ -72,7 +73,8 @@ npm run start:dev
 ```
 
 - El `.env.example` ya apunta al Postgres de Docker. Para usar Neon, cambiar las variables `POSTGRES_*` según los comentarios del archivo.
-- **El `.env` nunca se sube al repo**, porque contiene las credenciales de Neon.
+- **El `.env` nunca se sube al repo**, porque contiene las credenciales de Neon y las API keys.
+- Los endpoints de integración (reserva, liberación, reservas, despacho y recepción) piden una API key por módulo, configurada en `INTEGRACION_API_KEYS=modulo:clave,modulo:clave`. Una clave se genera con `node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"`.
 - La API queda en `http://localhost:3000/api/v1`.
 - Swagger queda en `http://localhost:3000/api/docs`, para probar los endpoints sin el front.
 
@@ -144,8 +146,9 @@ Los errores responden con el código HTTP real y un formato común:
 | Caso | Código |
 | --- | --- |
 | Campos faltantes, de tipo incorrecto o no permitidos; cantidad 0 o negativa | 400 |
-| Tema, producto o bodega inexistente (o producto inactivo en el ingreso) | 404 |
-| SKU repetido | 409 |
+| Falta la API key o no es válida (endpoints de integración) | 401 |
+| Tema, producto, bodega o reserva inexistente (o producto inactivo) | 404 |
+| SKU repetido; stock insuficiente; reserva ya despachada o anulada; guía ya usada con otros datos | 409 |
 
 ## Modelo de datos
 
@@ -179,5 +182,5 @@ npm run build
 
 ## Pendiente
 
-- **Sprint 3:** autenticación y roles con el JWT de RRHH, reserva y liberación de stock para e-Commerce, despachos y recepciones con Logística, y las FKs hacia las tablas de los otros módulos.
+- **Sprint 3:** autenticación y roles con el JWT de RRHH, las FKs hacia las tablas de los otros módulos, y las pantallas del front (imagen del producto, login, ajuste e historial). Las integraciones con e-Commerce y Logística ya están en la API; falta probarlas con esos equipos.
 - **Sprint 4:** 100 o más registros en una tabla crítica, KPIs y dashboard en Power BI.
