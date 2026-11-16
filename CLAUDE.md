@@ -247,6 +247,7 @@ Reservar, liberar y confirmar despachos o recepciones lo invocan e-Commerce y Lo
     - Despacho: `lineas` con todos los productos de la reserva (0 si no se recolectó); un pedido, una OT, una guía (varias cajas = varios bultos de la misma guía); `num_seguimiento` opcional y no se guarda.
     - Recepción: `id_recepcion_logistica` y `fecha_recepcion` opcionales e ignorados; un reintento con el mismo `id_oc` + `nro_guia_proveedor` devuelve la recepción ya registrada, **pero 409 si llega el mismo par con líneas distintas**.
   - **`POST /movimientos/despacho`** (rama `integracion-logistica`): con `{ id_despacho, num_seguimiento?, id_pedido, id_empleado, observaciones_picking?, lineas }`. Por producto, lo recolectado sale de las bodegas en el orden de la reserva y el resto se libera. Idempotente por `id_despacho`; la misma guía en otro pedido da 409.
+  - **`POST /movimientos/recepcion`** (rama `integracion-logistica`): con `{ id_oc, id_proveedor, nro_guia_proveedor, id_empleado, id_recepcion_logistica?, fecha_recepcion?, lineas: [{ id_producto, id_bodega, cantidad }] }`, cantidad neta. Un reintento con los mismos datos devuelve la recepción ya registrada; la misma guía con otras líneas u otro proveedor da 409. Una OC puede llegar en varias guías.
   - Usan `id_producto INTEGER`, que calza. Hoy no nos llaman: registran `SALIDA` y `ENTRADA` en su tabla de prueba.
   - **Por acordar:** que el despacho llame a nuestro egreso por `id_pedido`; el tipo de sus IDs (guías y OTs de texto, `id_pedido` de texto); el despacho parcial (su OT tiene estado `PARCIAL`); y que la recepción de OC envíe `id_proveedor` y `nro_guia_proveedor`, que su `log_recepcion` no guarda.
 - **Compras:** FKs de `id_proveedor` e `id_oc`, y cómo reciben la alerta de stock bajo (`GET /stock` ya trae `bodegas_bajo_minimo`). Sin reunión todavía.
@@ -279,7 +280,7 @@ Al 11-11-2026 existen `config/`, `common/`, `health/`, `database/`, `catalogo/`,
 - `GET /stock`, `/stock/:idProducto`
 - `GET /movimientos`, `/movimientos/:id`; `POST /movimientos/ingreso`, `/movimientos/ajuste`
 - `POST /movimientos/reserva` y `/movimientos/liberacion` (con `ApiKeyGuard`, PR #20)
-- En la rama `integracion-logistica`: `GET /reservas?id_pedido=` y `POST /movimientos/despacho` (con `ApiKeyGuard`), peso y medidas en los GET de productos
+- En la rama `integracion-logistica`: `GET /reservas?id_pedido=`, `POST /movimientos/despacho` y `/movimientos/recepcion` (con `ApiKeyGuard`), peso y medidas en los GET de productos
 
 ### Reglas técnicas (lecciones del repo de referencia heuremi/backend-inventario)
 
@@ -335,7 +336,7 @@ Exige: integración con los maestros canónicos, al menos 1 escenario de integra
 | S3.2 | **Autenticación y roles.** Guard de JWT (lee `employeeId` y `role`, secreto en `.env`), guard de roles con los nombres en constantes, tokens de prueba solo en desarrollo y sacar `id_empleado` del body | Se puede avanzar ya; el secreto y los nombres finales los da RRHH |
 | S3.3 | **Credencial de servicio** para los endpoints de integración. **Guard listo (12-11, rama `api-key-integraciones`):** `ApiKeyGuard` con claves por módulo en `INTEGRACION_API_KEYS`. Falta aplicarlo a los endpoints de S3.1, S3.4 y S3.5 cuando existan, y generar y entregar las claves a cada grupo | Sin bloqueos |
 | S3.4 | **Despacho.** `POST /movimientos/despacho` (nombre acordado con Logística): `EGRESO` de lo recolectado y `LIBERACION` del resto en una llamada, su fila en `inv_despachos_operario`, y la reserva `COMPLETADO` | **Implementado en `integracion-logistica` (16-11)** |
-| S3.5 | **Recepción de OC.** `POST /movimientos/recepcion`: `INGRESO` con su fila en `inv_recepciones_compra`; la recepción repetida da 409 por el `UNIQUE (id_oc, nro_guia_proveedor)` | Acuerdos con Logística y Compras |
+| S3.5 | **Recepción de OC.** `POST /movimientos/recepcion`: `INGRESO` con su fila en `inv_recepciones_compra`; idempotente por `id_oc` + `nro_guia_proveedor` (409 si cambian los datos) | **Implementado en `integracion-logistica` (16-11).** Falta validar que `id_proveedor` sea el de la OC cuando exista la tabla de Compras |
 | S3.6 | **FKs a otros módulos** con `ALTER TABLE`. La de `id_empleado` → `rrhh.empleado` ya se puede crear: todos los movimientos usan el empleado 1, que existe. Avisar antes a RRHH, porque `ON DELETE RESTRICT` les impide borrar a ese empleado | Tablas de cada grupo |
 | S3.7 | **Front:** mostrar la imagen del producto, inicio de sesión con RRHH y pantallas de ajuste e historial | S3.2 para el login |
 | S3.8 | **Devoluciones** con Postventa | Reunión con Postventa |

@@ -15,6 +15,7 @@ import { RegistrarAjusteDto } from './dto/registrar-ajuste.dto.js';
 import { RegistrarReservaDto } from './dto/registrar-reserva.dto.js';
 import { LiberarReservaDto } from './dto/liberar-reserva.dto.js';
 import { RegistrarDespachoDto } from './dto/registrar-despacho.dto.js';
+import { RegistrarRecepcionDto } from './dto/registrar-recepcion.dto.js';
 
 @ApiTags('movimientos')
 @Controller('movimientos')
@@ -63,5 +64,13 @@ export class MovimientosController {
   @ApiBearerAuth()
   async registrarDespacho(@Body() dto: RegistrarDespachoDto) {
     return this.movimientosService.registrarDespacho(dto);
+  }
+
+  // Lo llama Logística al recibir una OC en el muelle: INGRESO de lo neto por bodega.
+  @Post('recepcion')
+  @UseGuards(ApiKeyGuard)
+  @ApiBearerAuth()
+  async registrarRecepcion(@Body() dto: RegistrarRecepcionDto) {
+    return this.movimientosService.registrarRecepcion(dto);
   }
 }

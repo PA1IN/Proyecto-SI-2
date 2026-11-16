@@ -115,6 +115,7 @@ Todos van con el prefijo `/api/v1`.
 | `POST` | `/movimientos/liberacion` | Libera la reserva de un pedido cancelado: devuelve el stock a las mismas bodegas y anula la reserva. Requiere API key. Idempotente; 409 si ya se despachó |
 | `GET` | `/reservas?id_pedido=` | La reserva de un pedido: estado y, por línea, producto, bodega, ubicación y cantidad. Para el picking de Logística. Requiere API key; 404 si el pedido no tiene reserva |
 | `POST` | `/movimientos/despacho` | Logística confirma una guía: `EGRESO` de lo recolectado y `LIBERACION` de lo que faltó, y la reserva queda `COMPLETADO`. Requiere API key. `lineas` trae todos los productos de la reserva (0 si no se recolectó). Idempotente por `id_despacho` |
+| `POST` | `/movimientos/recepcion` | Logística recibe una OC: `INGRESO` de lo neto (recibido menos dañado) en cada bodega. Requiere API key. Idempotente por `id_oc` + `nro_guia_proveedor`; la misma guía con otros datos da 409 |
 
 ### Ejemplos de body
 

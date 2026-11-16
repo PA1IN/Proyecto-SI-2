@@ -15,6 +15,9 @@ import { LiberarReservaDto } from './dto/liberar-reserva.dto.js';
 import { ReservaPedido } from './interfaces/reserva-pedido.interface.js';
 import { RegistrarDespachoDto } from './dto/registrar-despacho.dto.js';
 import { ResultadoDespacho } from './interfaces/resultado-despacho.interface.js';
+import { RegistrarRecepcionDto } from './dto/registrar-recepcion.dto.js';
+import { ResultadoRecepcion } from './interfaces/resultado-recepcion.interface.js';
+import { InvRecepcionCompra } from './entities/inv-recepcion-compra.entity.js';
 import {
   LineaStock,
   repartirDespacho,
@@ -400,6 +403,133 @@ export class MovimientosService {
       );
       return { id_despacho: dto.id_despacho, egreso, liberacion };
     });
+  }
+
+  // Logística recibe una OC en el muelle: INGRESO de lo neto (recibido menos dañado) por bodega.
+  // Idempotente por id_oc + nro_guia_proveedor; el mismo par con otros datos da 409 (acordado 16-11).
+  async registrarRecepcion(
+    dto: RegistrarRecepcionDto,
+  ): Promise<ResultadoRecepcion> {
+    try {
+      return await this.dataSource.transaction(async (manager) => {
+        const previa = await this.movimientoRepo.findRecepcion(
+          dto.id_oc,
+          dto.nro_guia_proveedor,
+          manager,
+        );
+        if (previa) return this.recepcionExistente(dto, previa);
+
+        const idsProducto = [...new Set(dto.lineas.map((l) => l.id_producto))];
+        const productos = await manager.findBy(InvProducto, {
+          id_producto: In(idsProducto),
+        });
+        for (const id of idsProducto) {
+          if (!productos.find((p) => p.id_producto === id)?.activo) {
+            throw new NotFoundException(
+              `El producto con ID ${id} no existe o está inactivo`,
+            );
+          }
+        }
+        const idsBodega = [...new Set(dto.lineas.map((l) => l.id_bodega))];
+        const bodegas = await manager.findBy(InvBodegas, {
+          id_bodega: In(idsBodega),
+        });
+        const faltante = idsBodega.find(
+          (id) => !bodegas.some((b) => b.id_bodega === id),
+        );
+        if (faltante) {
+          throw new NotFoundException(`La bodega con ID ${faltante} no existe`);
+        }
+
+        const ingreso = await this.movimientoRepo.crearCabecera(
+          {
+            id_empleado: dto.id_empleado,
+            tipo_operacion: 'INGRESO',
+            estado: 'COMPLETADO',
+          },
+          manager,
+        );
+        // La fila de recepción va antes del stock: si un reintento simultáneo llegó primero,
+        // el UNIQUE (id_oc, nro_guia_proveedor) frena aquí, sin haber sumado nada.
+        await this.movimientoRepo.crearRecepcion(
+          {
+            id_movimiento: ingreso.id_movimiento,
+            id_oc: dto.id_oc,
+            id_proveedor: dto.id_proveedor,
+            nro_guia_proveedor: dto.nro_guia_proveedor,
+          },
+          manager,
+        );
+        ingreso.detalles = [];
+        for (const { id_producto, id_bodega, cantidad } of dto.lineas) {
+          await this.stockRepo.sumarDisponible(
+            id_producto,
+            id_bodega,
+            cantidad,
+            manager,
+          );
+          ingreso.detalles.push(
+            await this.movimientoRepo.crearDetalle(
+              {
+                id_movimiento: ingreso.id_movimiento,
+                id_producto,
+                id_bodega,
+                cantidad,
+              },
+              manager,
+            ),
+          );
+        }
+        return {
+          id_oc: dto.id_oc,
+          id_proveedor: dto.id_proveedor,
+          nro_guia_proveedor: dto.nro_guia_proveedor,
+          ingreso,
+        };
+      });
+    } catch (error) {
+      // Dos reintentos simultáneos: el que perdió responde con la recepción del que ganó.
+      if (
+        error instanceof QueryFailedError &&
+        (error.driverError as { constraint?: string })?.constraint ===
+          'uq_recepcion_oc_guia'
+      ) {
+        const previa = await this.movimientoRepo.findRecepcion(
+          dto.id_oc,
+          dto.nro_guia_proveedor,
+          this.dataSource.manager,
+        );
+        if (previa) return this.recepcionExistente(dto, previa);
+      }
+      throw error;
+    }
+  }
+
+  // Un reintento con los mismos datos recibe la recepción ya registrada; con otros datos, 409,
+  // para que una corrección no se pierda sin aviso.
+  private recepcionExistente(
+    dto: RegistrarRecepcionDto,
+    previa: { recepcion: InvRecepcionCompra; ingreso: InvMovimiento },
+  ): ResultadoRecepcion {
+    const firma = (lineas: LineaStock[]) =>
+      lineas
+        .map((l) => `${l.id_producto}-${l.id_bodega}-${l.cantidad}`)
+        .sort()
+        .join(',');
+    if (
+      previa.recepcion.id_proveedor !== dto.id_proveedor ||
+      firma(previa.ingreso.detalles) !== firma(dto.lineas)
+    ) {
+      throw new ConflictException(
+        `La guía ${dto.nro_guia_proveedor} de la OC ${dto.id_oc} ya se registró con otros datos`,
+      );
+    }
+    return {
+      id_oc: previa.recepcion.id_oc,
+      id_proveedor: previa.recepcion.id_proveedor,
+      nro_guia_proveedor: previa.recepcion.nro_guia_proveedor,
+      ingreso: previa.ingreso,
+    };
   }
 
   private async crearMovimiento(

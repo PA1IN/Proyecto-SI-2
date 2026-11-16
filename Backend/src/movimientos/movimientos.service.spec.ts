@@ -618,3 +618,164 @@ describe('MovimientosService.registrarDespacho', () => {
     );
   });
 });
+
+describe('MovimientosService.registrarRecepcion', () => {
+  const recepcionDto = {
+    id_oc: 55,
+    id_proveedor: 3,
+    nro_guia_proveedor: 'GP-8812',
+    id_empleado: 4,
+    lineas: [
+      { id_producto: 1, id_bodega: 2, cantidad: 18 },
+      { id_producto: 2, id_bodega: 2, cantidad: 5 },
+    ],
+  };
+
+  function crearServicioRecepcion(
+    opciones: {
+      previa?: object | null;
+      productos?: object[];
+      bodegas?: object[];
+      transaccion?: () => never;
+    } = {},
+  ) {
+    const manager = {
+      findBy: vi.fn(async (entidad: { name: string }) =>
+        entidad.name === 'InvProducto'
+          ? (opciones.productos ?? [
+              { id_producto: 1, activo: true },
+              { id_producto: 2, activo: true },
+            ])
+          : (opciones.bodegas ?? [{ id_bodega: 2 }]),
+      ),
+    };
+    const dataSource = {
+      manager,
+      transaction: opciones.transaccion
+        ? vi.fn(opciones.transaccion)
+        : vi.fn((fn: (m: EntityManager) => unknown) =>
+            fn(manager as unknown as EntityManager),
+          ),
+    } as unknown as DataSource;
+    const stockRepo = { sumarDisponible: vi.fn() };
+    const movimientoRepo = {
+      findRecepcion: vi.fn().mockResolvedValue(opciones.previa ?? null),
+      crearCabecera: vi.fn(async (datos) => ({ id_movimiento: 50, ...datos })),
+      crearRecepcion: vi.fn(),
+      crearDetalle: vi.fn(async (datos) => ({ id_detalle: 1, ...datos })),
+    };
+    const service = new MovimientosService(
+      dataSource,
+      stockRepo as unknown as StockRepository,
+      movimientoRepo as unknown as MovimientoRepository,
+      {} as ReservaStrategy,
+    );
+    return { service, stockRepo, movimientoRepo };
+  }
+
+  // La recepción ya registrada, con las mismas líneas en otro orden.
+  const previaIgual = () => ({
+    recepcion: { id_oc: 55, id_proveedor: 3, nro_guia_proveedor: 'GP-8812' },
+    ingreso: {
+      id_movimiento: 49,
+      detalles: [
+        { id_producto: 2, id_bodega: 2, cantidad: 5 },
+        { id_producto: 1, id_bodega: 2, cantidad: 18 },
+      ],
+    },
+  });
+
+  it('crea el INGRESO, la fila de recepción y suma el stock de cada línea', async () => {
+    const { service, stockRepo, movimientoRepo } = crearServicioRecepcion();
+
+    const res = await service.registrarRecepcion(recepcionDto);
+
+    expect(movimientoRepo.crearCabecera).toHaveBeenCalledWith(
+      { id_empleado: 4, tipo_operacion: 'INGRESO', estado: 'COMPLETADO' },
+      expect.anything(),
+    );
+    expect(movimientoRepo.crearRecepcion).toHaveBeenCalledWith(
+      {
+        id_movimiento: 50,
+        id_oc: 55,
+        id_proveedor: 3,
+        nro_guia_proveedor: 'GP-8812',
+      },
+      expect.anything(),
+    );
+    expect(
+      stockRepo.sumarDisponible.mock.calls.map((c) => c.slice(0, 3)),
+    ).toEqual([
+      [1, 2, 18],
+      [2, 2, 5],
+    ]);
+    expect(res.ingreso.detalles).toHaveLength(2);
+  });
+
+  it('un reintento con los mismos datos devuelve la recepción ya registrada', async () => {
+    const previa = previaIgual();
+    const { service, stockRepo } = crearServicioRecepcion({ previa });
+
+    const res = await service.registrarRecepcion(recepcionDto);
+
+    expect(res.ingreso).toBe(previa.ingreso);
+    expect(stockRepo.sumarDisponible).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [
+      'otras cantidades',
+      {
+        lineas: [
+          { id_producto: 1, id_bodega: 2, cantidad: 17 },
+          { id_producto: 2, id_bodega: 2, cantidad: 5 },
+        ],
+      },
+    ],
+    ['otro proveedor', { id_proveedor: 9 }],
+  ])('responde 409 si la misma guía llega con %s', async (_caso, cambio) => {
+    const { service, stockRepo } = crearServicioRecepcion({
+      previa: previaIgual(),
+    });
+
+    await expect(
+      service.registrarRecepcion({ ...recepcionDto, ...cambio }),
+    ).rejects.toThrow(ConflictException);
+    expect(stockRepo.sumarDisponible).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [
+      'un producto no existe',
+      { productos: [{ id_producto: 1, activo: true }] },
+    ],
+    ['la bodega no existe', { bodegas: [] }],
+  ])('responde 404 si %s y no crea nada', async (_caso, opciones) => {
+    const { service, movimientoRepo } = crearServicioRecepcion(opciones);
+
+    await expect(service.registrarRecepcion(recepcionDto)).rejects.toThrow(
+      NotFoundException,
+    );
+    expect(movimientoRepo.crearCabecera).not.toHaveBeenCalled();
+  });
+
+  it('si choca con el UNIQUE por un reintento simultáneo, devuelve la recepción ganadora', async () => {
+    const previa = previaIgual();
+    const choque = new QueryFailedError('INSERT', [], {
+      code: '23505',
+      constraint: 'uq_recepcion_oc_guia',
+    } as unknown as Error);
+    const { service, movimientoRepo } = crearServicioRecepcion({
+      transaccion: () => {
+        throw choque;
+      },
+    });
+    movimientoRepo.findRecepcion.mockResolvedValueOnce(previa);
+
+    await expect(
+      service.registrarRecepcion(recepcionDto),
+    ).resolves.toMatchObject({
+      ingreso: previa.ingreso,
+    });
+  });
+});

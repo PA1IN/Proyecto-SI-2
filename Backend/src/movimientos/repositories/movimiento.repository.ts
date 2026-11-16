@@ -8,6 +8,7 @@ import {
 } from '../entities/inv-movimiento.entity.js';
 import { InvDetalleMovimiento } from '../entities/inv-detalle-movimiento.entity.js';
 import { InvDespachoOperario } from '../entities/inv-despacho-operario.entity.js';
+import { InvRecepcionCompra } from '../entities/inv-recepcion-compra.entity.js';
 
 @Injectable()
 export class MovimientoRepository {
@@ -99,6 +100,31 @@ export class MovimientoRepository {
       where: { id_movimiento: despacho.id_movimiento },
       relations: { detalles: true },
     });
+  }
+
+  async crearRecepcion(
+    datos: Partial<InvRecepcionCompra>,
+    manager: EntityManager,
+  ): Promise<InvRecepcionCompra> {
+    const repo = manager.getRepository(InvRecepcionCompra);
+    return repo.save(repo.create(datos));
+  }
+
+  // La recepción de una guía de proveedor, con el INGRESO y su detalle. (id_oc, nro_guia) es UNIQUE.
+  async findRecepcion(
+    id_oc: number,
+    nro_guia_proveedor: string,
+    manager: EntityManager,
+  ): Promise<{ recepcion: InvRecepcionCompra; ingreso: InvMovimiento } | null> {
+    const recepcion = await manager
+      .getRepository(InvRecepcionCompra)
+      .findOneBy({ id_oc, nro_guia_proveedor });
+    if (!recepcion) return null;
+    const ingreso = await manager.getRepository(InvMovimiento).findOne({
+      where: { id_movimiento: recepcion.id_movimiento },
+      relations: { detalles: true },
+    });
+    return { recepcion, ingreso: ingreso! };
   }
 
   // El trigger solo permite cambiar el estado de un movimiento PENDIENTE.
