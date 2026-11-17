@@ -34,6 +34,7 @@ Backend/
 │  ├─ config/       validación de variables de entorno
 │  └─ database/     conexión TypeORM (synchronize: false)
 ├─ test/          pruebas e2e
+├─ Dockerfile     imagen de la API (sección 2b)
 └─ docker-compose.yml
 Frontend/
 └─ src/           páginas: Productos, DetalleProducto, CrearProducto, IngresoStock, Bodegas
@@ -77,6 +78,20 @@ npm run start:dev
 - Los endpoints de integración (reserva, liberación, reservas, despacho y recepción) piden una API key por módulo, configurada en `INTEGRACION_API_KEYS=modulo:clave,modulo:clave`. Una clave se genera con `node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"`.
 - La API queda en `http://localhost:3000/api/v1`.
 - Swagger queda en `http://localhost:3000/api/docs`, para probar los endpoints sin el front.
+
+### 2b. Backend con Docker (alternativa)
+
+La imagen trae solo la API. La BD sigue en Neon (o en el Postgres local). El `.env` nunca entra a la imagen: se monta al correr el contenedor, y la app lo lee igual que con `npm run start`. Desde `Backend/` (en PowerShell):
+
+```bash
+docker build -t inventario-api .
+docker run -d --name inventario-api -p 3000:3000 -v "${PWD}/.env:/app/.env:ro" inventario-api
+```
+
+- No usar `--env-file .env`: Docker no quita las comillas, y la contraseña de Neon las necesita porque contiene `#` (sin comillas, el resto se lee como comentario).
+- En un servicio de despliegue, las variables se configuran en su panel y el `.env` no hace falta.
+- Para usar el Postgres local de `docker-compose.yml` desde el contenedor, `POSTGRES_HOST` debe ser `host.docker.internal` (dentro del contenedor, `localhost` es el propio contenedor).
+- El contenedor revisa `GET /api/v1/health` cada 30 segundos; `docker ps` muestra `healthy` cuando responde.
 
 ### 3. Frontend
 

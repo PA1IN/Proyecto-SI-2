@@ -1,0 +1,10 @@
+# El .env tiene credenciales: nunca entra a la imagen, se pasa con --env-file.
+.env
+.env.*
+node_modules
+dist
+coverage
+*.tsbuildinfo
+*.log
+db
+test
