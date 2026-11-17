@@ -70,6 +70,7 @@ Contexto y reglas de trabajo para retomar el proyecto en cualquier sesión. Resp
   - Proxy de Vite hacia `http://localhost:3000`. Con `VITE_USE_MOCK=false` usa el backend real.
 - **BD:** PostgreSQL en un proyecto nuevo de Neon (servicio en la nube), base `si2_22026`.
 - **Comunicación entre módulos:** HTTP/REST.
+- **Docker (acordado entre los grupos el 16-11-2026):** cada backend se entrega como imagen. `Backend/Dockerfile` (Node 24 alpine, en dos etapas, usuario `node` y healthcheck a `/api/v1/health`) solo trae la API; la BD sigue en Neon y el `.env` se monta al correr (`-v "${PWD}/.env:/app/.env:ro"`). No usar `--env-file`: no quita las comillas, y la contraseña de Neon las necesita por contener `#`. El `.dockerignore` deja fuera el `.env`.
 
 ## Base de datos central (servidor nuevo, octubre 2026)
 
@@ -312,9 +313,8 @@ Al 16-11-2026 existen `config/`, `common/`, `health/`, `database/`, `auth/` (sol
 | #18 | `docs-estado-sprint3` | Este archivo y el README al día con el Sprint 3 |
 | #19 | `api-key-integraciones` | `ApiKeyGuard` e `id_empleado` nullable (DDL 04) |
 | #20 | `reserva-liberacion` | Reserva y liberación para e-Commerce, índice único (DDL 05) y tests de `calcularAsignacionReserva` |
-| — | `integracion-logistica` | Peso y medidas (DDL/DML 06), `id_despacho` texto (DDL 07), `GET /reservas`, despacho y recepción para Logística |
-
-Con el PR de `integracion-logistica`, ninguna rama remota queda con trabajo sin mergear.
+| #21 | `integracion-logistica` | Peso y medidas (DDL/DML 06), `id_despacho` texto (DDL 07), `GET /reservas`, despacho y recepción para Logística |
+| — | `docker-backend` | `Dockerfile` y `.dockerignore` del backend |
 
 ## Plan base del backend
 
