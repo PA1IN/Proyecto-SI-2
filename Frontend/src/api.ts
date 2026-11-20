@@ -1,6 +1,24 @@
 import type { Producto, Bodega, DetalleStock, Tema } from './tipos';
 
-const USE_MOCK = import.meta.env.VITE_USE_MOCK !== 'false';
+export const USE_MOCK = import.meta.env.VITE_USE_MOCK !== 'false';
+
+const CLAVE_TOKEN = 'inventario_token';
+export const leerToken = () => localStorage.getItem(CLAVE_TOKEN);
+export const guardarToken = (token: string) => localStorage.setItem(CLAVE_TOKEN, token);
+export const cerrarSesion = () => {
+  localStorage.removeItem(CLAVE_TOKEN);
+  window.location.reload();
+};
+
+// fetch con el JWT. Un 401 es un token vencido o inválido: se vuelve al login.
+export async function apiFetch(url: string, init: RequestInit = {}): Promise<Response> {
+  const headers = new Headers(init.headers);
+  const token = leerToken();
+  if (token) headers.set('Authorization', `Bearer ${token}`);
+  const res = await fetch(url, { ...init, headers });
+  if (res.status === 401 && token) cerrarSesion();
+  return res;
+}
 
 const MOCK: Producto[] = [
   { id_producto: 1, sku: '77073', nombre_set: 'Battle Bus', tema: 'Fortnite', cant_piezas: 954, cantidad_disponible: 3, cantidad_reservada: 1, stock_minimo: 5, activo: true, bodegas_bajo_minimo: 0 },
@@ -38,8 +56,8 @@ export async function fetchProductos(): Promise<Producto[]> {
   
   // Hacemos ambas peticiones en paralelo para que sea súper rápido
   const [resProductos, resStock] = await Promise.all([
-    fetch('/api/v1/productos'),
-    fetch('/api/v1/stock')
+    apiFetch('/api/v1/productos'),
+    apiFetch('/api/v1/stock')
   ]);
 
   if (!resProductos.ok || !resStock.ok) {
@@ -86,7 +104,7 @@ export async function fetchBodegas(): Promise<Bodega[]> {
     return MOCK_BODEGAS;
   }
   
-  const res = await fetch('/api/v1/bodegas');
+  const res = await apiFetch('/api/v1/bodegas');
   if (!res.ok) {
     const body = (await res.json().catch(() => null)) as { message?: string | string[] } | null;
     const msg = Array.isArray(body?.message) ? body.message.join(', ') : body?.message;
@@ -104,7 +122,7 @@ export async function fetchBodegas(): Promise<Bodega[]> {
 
 
 export async function fetchStockPorProducto(idProducto: number): Promise<DetalleStock[]> {
-  const res = await fetch(`/api/v1/stock/${idProducto}`);
+  const res = await apiFetch(`/api/v1/stock/${idProducto}`);
   
   if (!res.ok) {
     if (res.status === 404) return []; 
@@ -123,7 +141,7 @@ export async function fetchTemas(): Promise<Tema[]> {
     }));
   }
 
-  const res = await fetch('/api/v1/productos/temas');
+  const res = await apiFetch('/api/v1/productos/temas');
   if (!res.ok) {
     const body = (await res.json().catch(() => null)) as { message?: string | string[] } | null;
     const msg = Array.isArray(body?.message) ? body.message.join(', ') : body?.message;

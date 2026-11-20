@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { fetchProductos, fetchBodegas } from './api';
+import { apiFetch, fetchProductos, fetchBodegas } from './api';
 import type { Producto, Bodega } from './tipos';
 
 export default function IngresoStock() {
@@ -15,8 +15,6 @@ export default function IngresoStock() {
   const [idProducto, setIdProducto] = useState('');
   const [idBodega, setIdBodega] = useState('');
   const [cantidad, setCantidad] = useState(1);
-  // Nuevo estado para el empleado
-  const [idEmpleado, setIdEmpleado] = useState(1);
 
   useEffect(() => {
     Promise.all([fetchProductos(), fetchBodegas()])
@@ -34,15 +32,13 @@ export default function IngresoStock() {
     setError(null);
 
     try {
-      const res = await fetch('/api/v1/movimientos/ingreso', {
+      const res = await apiFetch('/api/v1/movimientos/ingreso', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           id_producto: Number(idProducto),
           id_bodega: Number(idBodega),
           cantidad: Number(cantidad),
-          // Agregamos el parámetro faltante que pide el backend
-          id_empleado: Number(idEmpleado),
         }),
       });
 
@@ -113,18 +109,6 @@ export default function IngresoStock() {
                 </option>
               ))}
             </select>
-          </div>
-
-          <div style={{ marginBottom: '16px' }}>
-            <label style={{ display: 'block', marginBottom: '8px', fontWeight: 600 }}>ID Empleado (Operario)</label>
-            <input 
-              type="number" 
-              value={idEmpleado} 
-              onChange={(e) => setIdEmpleado(Number(e.target.value))} 
-              min={1}
-              required 
-              style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }}
-            />
           </div>
 
           <div style={{ marginBottom: '24px' }}>
