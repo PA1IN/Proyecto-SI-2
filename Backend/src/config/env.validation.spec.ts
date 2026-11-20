@@ -52,5 +52,11 @@ describe('validate (variables de entorno)', () => {
     ).toBe('secreto-compartido-rrhh');
     expect(() => validate({ JWT_SECRET: 'corto' })).toThrow(/JWT_SECRET/);
   });
+
+  it('AUTH_DEV_TOKENS queda apagado salvo que sea "true"', () => {
+    expect(validate({}).AUTH_DEV_TOKENS).toBe(false);
+    expect(validate({ AUTH_DEV_TOKENS: 'false' }).AUTH_DEV_TOKENS).toBe(false);
+    expect(validate({ AUTH_DEV_TOKENS: 'true' }).AUTH_DEV_TOKENS).toBe(true);
+  });
 });
 

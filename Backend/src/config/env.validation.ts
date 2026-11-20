@@ -74,6 +74,12 @@ export class EnvironmentVariables {
     message: 'JWT_SECRET debe tener al menos 16 caracteres (o estar vacio)',
   })
   JWT_SECRET: string = '';
+
+  // Habilita POST /auth/dev-token. Firma con JWT_SECRET: nunca activarlo con el secreto real de RRHH.
+  @Transform(
+    ({ obj }) => obj.AUTH_DEV_TOKENS === 'true' || obj.AUTH_DEV_TOKENS === true,
+  )
+  AUTH_DEV_TOKENS: boolean = false;
 }
 
 // Lo usa ConfigModule al arrancar: si una variable no es válida, la app no inicia.

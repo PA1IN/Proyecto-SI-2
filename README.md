@@ -76,6 +76,7 @@ npm run start:dev
 - El `.env.example` ya apunta al Postgres de Docker. Para usar Neon, cambiar las variables `POSTGRES_*` según los comentarios del archivo.
 - **El `.env` nunca se sube al repo**, porque contiene las credenciales de Neon y las API keys.
 - Los endpoints de integración (reserva, liberación, reservas, despacho y recepción) piden una API key por módulo, configurada en `INTEGRACION_API_KEYS=modulo:clave,modulo:clave`. Una clave se genera con `node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"`.
+- Los demás endpoints piden el JWT de RRHH, validado con `JWT_SECRET`. Mientras no esté el login de RRHH, el front usa un login de prueba que pide el token a `POST /api/v1/auth/dev-token`: requiere `AUTH_DEV_TOKENS=true` y un `JWT_SECRET` local de 16 caracteres o más. Nunca activar `AUTH_DEV_TOKENS` con el secreto real de RRHH.
 - La API queda en `http://localhost:3000/api/v1`.
 - Swagger queda en `http://localhost:3000/api/docs`, para probar los endpoints sin el front.
 

@@ -9,7 +9,6 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { ApiBearerAuth, ApiProperty, ApiPropertyOptional, ApiTags } from '@nestjs/swagger';
 import { IsIn, IsInt, IsOptional, IsPositive, IsString } from 'class-validator';
-import { Environment } from '../config/env.validation.js';
 import { CurrentUser, Public } from './auth.decorators.js';
 import { JwtAuthGuard } from './jwt-auth.guard.js';
 import { firmarJwtHs256 } from './jwt.util.js';
@@ -55,13 +54,14 @@ class DevTokenDto {
 export class AuthController {
   constructor(private readonly config: ConfigService) {}
 
-  // endpoint solo para desarrollo o pruebas locales cuando el servidor de RRHH no está levantado
+  // Solo para desarrollo y demos mientras no esté el login de RRHH. Requiere AUTH_DEV_TOKENS=true.
   @Public()
   @Post('dev-token')
   generarTokenDesarrollo(@Body() dto: DevTokenDto) {
-    if (this.config.get<Environment>('NODE_ENV') === Environment.Production) {
+    // Apagado por defecto: con el secreto compartido, cualquiera podría firmar tokens para todo el ERP.
+    if (!this.config.get<boolean>('AUTH_DEV_TOKENS')) {
       throw new ForbiddenException(
-        'La emisión de tokens de prueba está deshabilitada en producción',
+        'Los tokens de prueba están deshabilitados (AUTH_DEV_TOKENS=false)',
       );
     }
     const secreto = this.config.get<string>('JWT_SECRET', '');
