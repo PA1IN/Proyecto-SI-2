@@ -11,6 +11,7 @@ import { InvTema } from './entities/inv-tema.entity.js';
 import { CrearProductoDto } from './dto/crear-producto.dto.js';
 import { ActualizarProductoDto } from './dto/actualizar-producto.dto.js';
 import { ProductoConStock } from './interfaces/producto-con-stock.interface.js';
+import { estimarMedidas } from './utils/estimar-medidas.util.js';
 
 @Injectable()
 export class CatalogoService {
@@ -52,7 +53,15 @@ export class CatalogoService {
       );
     }
 
-    return this.productoRepo.crear(dto);
+    // Cada medida que no venga se completa con la estimación por cantidad de piezas.
+    const estimadas = estimarMedidas(dto.cant_piezas);
+    return this.productoRepo.crear({
+      ...dto,
+      peso_unitario_kg: dto.peso_unitario_kg ?? estimadas.peso_unitario_kg,
+      largo_cm: dto.largo_cm ?? estimadas.largo_cm,
+      alto_cm: dto.alto_cm ?? estimadas.alto_cm,
+      ancho_cm: dto.ancho_cm ?? estimadas.ancho_cm,
+    });
   }
 
   async actualizarProducto(

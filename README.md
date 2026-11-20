@@ -20,19 +20,21 @@ El módulo es dueño del **maestro de productos** (`id_producto`) y del **stock 
 ```
 Backend/
 ├─ db/
-│  ├─ ddl/        tablas, triggers y cambios del Sprint 3 (03 a 05)  (schema inventario)
-│  ├─ dml/        temas, bodegas, 120 productos, stock inicial e imágenes
+│  ├─ ddl/        tablas, triggers y cambios del Sprint 3 (03 a 07)  (schema inventario)
+│  ├─ dml/        temas, bodegas, 120 productos, stock inicial, imágenes y medidas estimadas
 │  ├─ local/      crea el schema en el Postgres de Docker
 │  └─ test/       validar_ddl.sql (prueba restricciones y triggers, termina en ROLLBACK)
 ├─ src/
+│  ├─ auth/         API key de los módulos que nos llaman
 │  ├─ catalogo/     productos y temas
 │  ├─ stock/        bodegas y stock por bodega
-│  ├─ movimientos/  ingresos, ajustes e historial
+│  ├─ movimientos/  ingresos, ajustes, historial, reservas, despachos y recepciones
 │  ├─ health/       estado del servicio
 │  ├─ common/       filtro global de errores
 │  ├─ config/       validación de variables de entorno
 │  └─ database/     conexión TypeORM (synchronize: false)
 ├─ test/          pruebas e2e
+├─ Dockerfile     imagen de la API (sección 2b)
 └─ docker-compose.yml
 Frontend/
 └─ src/           páginas: Productos, DetalleProducto, CrearProducto, IngresoStock, Bodegas
@@ -56,7 +58,7 @@ docker compose up -d
 La primera vez, Docker crea la base `si2_local` y el schema `inventario`. Después hay que cargar las tablas y los datos con los scripts del repo, en este orden:
 
 ```bash
-docker exec inventario-postgres psql -U inventario -d si2_local -v ON_ERROR_STOP=1 -f /db/ddl/01_tablas.sql -f /db/ddl/02_triggers.sql -f /db/ddl/03_imagen_producto.sql -f /db/ddl/04_empleado_nullable.sql -f /db/ddl/05_reserva_unica.sql -f /db/dml/01_temas.sql -f /db/dml/02_bodegas.sql -f /db/dml/03_productos.sql -f /db/dml/04_stock_inicial.sql -f /db/dml/05_imagenes_productos.sql
+docker exec inventario-postgres psql -U inventario -d si2_local -v ON_ERROR_STOP=1 -f /db/ddl/01_tablas.sql -f /db/ddl/02_triggers.sql -f /db/ddl/03_imagen_producto.sql -f /db/ddl/04_empleado_nullable.sql -f /db/ddl/05_reserva_unica.sql -f /db/ddl/06_medidas_producto.sql -f /db/ddl/07_despacho_varchar.sql -f /db/dml/01_temas.sql -f /db/dml/02_bodegas.sql -f /db/dml/03_productos.sql -f /db/dml/04_stock_inicial.sql -f /db/dml/05_imagenes_productos.sql -f /db/dml/06_medidas_productos.sql
 ```
 
 Opcional: `-f /db/test/validar_ddl.sql` revisa las restricciones y los triggers sin dejar datos.
@@ -72,9 +74,24 @@ npm run start:dev
 ```
 
 - El `.env.example` ya apunta al Postgres de Docker. Para usar Neon, cambiar las variables `POSTGRES_*` según los comentarios del archivo.
-- **El `.env` nunca se sube al repo**, porque contiene las credenciales de Neon.
+- **El `.env` nunca se sube al repo**, porque contiene las credenciales de Neon y las API keys.
+- Los endpoints de integración (reserva, liberación, reservas, despacho y recepción) piden una API key por módulo, configurada en `INTEGRACION_API_KEYS=modulo:clave,modulo:clave`. Una clave se genera con `node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"`.
 - La API queda en `http://localhost:3000/api/v1`.
 - Swagger queda en `http://localhost:3000/api/docs`, para probar los endpoints sin el front.
+
+### 2b. Backend con Docker (alternativa)
+
+La imagen trae solo la API. La BD sigue en Neon (o en el Postgres local). El `.env` nunca entra a la imagen: se monta al correr el contenedor, y la app lo lee igual que con `npm run start`. Desde `Backend/` (en PowerShell):
+
+```bash
+docker build -t inventario-api .
+docker run -d --name inventario-api -p 3000:3000 -v "${PWD}/.env:/app/.env:ro" inventario-api
+```
+
+- No usar `--env-file .env`: Docker no quita las comillas, y la contraseña de Neon las necesita porque contiene `#` (sin comillas, el resto se lee como comentario).
+- En un servicio de despliegue, las variables se configuran en su panel y el `.env` no hace falta.
+- Para usar el Postgres local de `docker-compose.yml` desde el contenedor, `POSTGRES_HOST` debe ser `host.docker.internal` (dentro del contenedor, `localhost` es el propio contenedor).
+- El contenedor revisa `GET /api/v1/health` cada 30 segundos; `docker ps` muestra `healthy` cuando responde.
 
 ### 3. Frontend
 
@@ -113,6 +130,9 @@ Todos van con el prefijo `/api/v1`.
 | `POST` | `/movimientos/ajuste` | Registra un ajuste de stock (positivo o negativo; 409 si no alcanza) |
 | `POST` | `/movimientos/reserva` | Reserva el stock de un pedido de e-Commerce. Requiere API key (`Authorization: Bearer`). Todo o nada (409 si una línea no alcanza) e idempotente por `id_pedido`; un pedido cancelado da 409 |
 | `POST` | `/movimientos/liberacion` | Libera la reserva de un pedido cancelado: devuelve el stock a las mismas bodegas y anula la reserva. Requiere API key. Idempotente; 409 si ya se despachó |
+| `GET` | `/reservas?id_pedido=` | La reserva de un pedido: estado y, por línea, producto, bodega, ubicación y cantidad. Para el picking de Logística. Requiere API key; 404 si el pedido no tiene reserva |
+| `POST` | `/movimientos/despacho` | Logística confirma una guía: `EGRESO` de lo recolectado y `LIBERACION` de lo que faltó, y la reserva queda `COMPLETADO`. Requiere API key. `lineas` trae todos los productos de la reserva (0 si no se recolectó). Idempotente por `id_despacho` |
+| `POST` | `/movimientos/recepcion` | Logística recibe una OC: `INGRESO` de lo neto (recibido menos dañado) en cada bodega. Requiere API key. Idempotente por `id_oc` + `nro_guia_proveedor`; la misma guía con otros datos da 409 |
 
 ### Ejemplos de body
 
@@ -141,8 +161,9 @@ Los errores responden con el código HTTP real y un formato común:
 | Caso | Código |
 | --- | --- |
 | Campos faltantes, de tipo incorrecto o no permitidos; cantidad 0 o negativa | 400 |
-| Tema, producto o bodega inexistente (o producto inactivo en el ingreso) | 404 |
-| SKU repetido | 409 |
+| Falta la API key o no es válida (endpoints de integración) | 401 |
+| Tema, producto, bodega o reserva inexistente (o producto inactivo) | 404 |
+| SKU repetido; stock insuficiente; reserva ya despachada o anulada; guía ya usada con otros datos | 409 |
 
 ## Modelo de datos
 
@@ -151,7 +172,7 @@ Todas las tablas van en el schema `inventario`:
 | Tabla | Contenido |
 | --- | --- |
 | `inv_temas` | Temas de LEGO (Star Wars, City, …) |
-| `inv_producto` | Maestro de productos. `sku` es el número de set y es único. `url_imagen` guarda solo la URL de la imagen |
+| `inv_producto` | Maestro de productos. `sku` es el número de set y es único. `url_imagen` guarda solo la URL de la imagen. `peso_unitario_kg`, `largo_cm`, `alto_cm` y `ancho_cm` son de la caja, para Logística; si no se envían al crear, se estiman por cantidad de piezas |
 | `inv_bodegas` | Bodegas físicas |
 | `inv_stock_bodega` | Stock por producto y bodega: disponible, reservado y mínimo |
 | `inv_movimiento` | Cabecera de cada movimiento: tipo, estado, empleado y referencias a otros módulos |
@@ -176,5 +197,5 @@ npm run build
 
 ## Pendiente
 
-- **Sprint 3:** autenticación y roles con el JWT de RRHH, reserva y liberación de stock para e-Commerce, despachos y recepciones con Logística, y las FKs hacia las tablas de los otros módulos.
+- **Sprint 3:** autenticación y roles con el JWT de RRHH, las FKs hacia las tablas de los otros módulos, y las pantallas del front (imagen del producto, login, ajuste e historial). Las integraciones con e-Commerce y Logística ya están en la API; falta probarlas con esos equipos.
 - **Sprint 4:** 100 o más registros en una tabla crítica, KPIs y dashboard en Power BI.

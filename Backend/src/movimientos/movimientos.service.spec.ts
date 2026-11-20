@@ -400,3 +400,383 @@ describe('MovimientosService.liberarReserva', () => {
     expect(movimientoRepo.actualizarEstado).not.toHaveBeenCalled();
   });
 });
+
+describe('MovimientosService.obtenerReservaPorPedido', () => {
+  function crearServicioConsulta(reserva: object | null) {
+    const movimientoRepo = {
+      findPorPedido: vi.fn().mockResolvedValue(reserva),
+      findById: vi.fn().mockResolvedValue({
+        detalles: [
+          {
+            id_producto: 4,
+            id_bodega: 3,
+            cantidad: 2,
+            producto: { sku: '75288-1', nombre_set: 'AT-AT' },
+            bodega: { nombre_bodega: 'Norte', ubicacion_fisica: 'Antofagasta' },
+          },
+        ],
+      }),
+    };
+    const service = new MovimientosService(
+      {} as DataSource,
+      {} as StockRepository,
+      movimientoRepo as unknown as MovimientoRepository,
+      {} as ReservaStrategy,
+    );
+    return { service, movimientoRepo };
+  }
+
+  it('devuelve el estado y cada línea con su producto y bodega', async () => {
+    const fecha = new Date('2026-11-16T12:00:00Z');
+    const { service, movimientoRepo } = crearServicioConsulta({
+      id_movimiento: 30,
+      estado: 'PENDIENTE',
+      fecha_registro: fecha,
+    });
+
+    await expect(service.obtenerReservaPorPedido(1001)).resolves.toEqual({
+      id_pedido: 1001,
+      id_movimiento: 30,
+      estado: 'PENDIENTE',
+      fecha_registro: fecha,
+      lineas: [
+        {
+          id_producto: 4,
+          sku: '75288-1',
+          nombre_set: 'AT-AT',
+          id_bodega: 3,
+          nombre_bodega: 'Norte',
+          ubicacion_fisica: 'Antofagasta',
+          cantidad: 2,
+        },
+      ],
+    });
+    expect(movimientoRepo.findPorPedido).toHaveBeenCalledWith(1001, 'RESERVA');
+  });
+
+  it('responde 404 si el pedido no tiene reserva', async () => {
+    const { service } = crearServicioConsulta(null);
+
+    await expect(service.obtenerReservaPorPedido(1001)).rejects.toThrow(
+      NotFoundException,
+    );
+  });
+});
+
+describe('MovimientosService.registrarDespacho', () => {
+  const despachoDto = {
+    id_despacho: 'GD-52341',
+    id_pedido: 1001,
+    id_empleado: 7,
+    lineas: [
+      { id_producto: 1, cantidad: 10 },
+      { id_producto: 2, cantidad: 1 },
+    ],
+  };
+  const reservaPendiente = () => ({
+    id_movimiento: 30,
+    id_pedido: 1001,
+    estado: 'PENDIENTE',
+    detalles: [
+      { id_detalle: 1, id_producto: 1, id_bodega: 2, cantidad: 7 },
+      { id_detalle: 2, id_producto: 1, id_bodega: 5, cantidad: 23 },
+      { id_detalle: 3, id_producto: 2, id_bodega: 4, cantidad: 1 },
+    ],
+  });
+
+  function crearServicioDespacho(
+    reserva: object | null,
+    opciones: { egresoPrevio?: object | null; stockOk?: boolean } = {},
+  ) {
+    const dataSource = {
+      transaction: (fn: (m: EntityManager) => unknown) =>
+        fn({} as EntityManager),
+    } as unknown as DataSource;
+    const stockRepo = {
+      descontarReservado: vi.fn().mockResolvedValue(opciones.stockOk ?? true),
+      liberarReservado: vi.fn().mockResolvedValue(true),
+    };
+    let siguienteId = 40;
+    const movimientoRepo = {
+      findReservaParaActualizar: vi.fn().mockResolvedValue(reserva),
+      findEgresoPorDespacho: vi
+        .fn()
+        .mockResolvedValue(opciones.egresoPrevio ?? null),
+      findPorPedido: vi.fn().mockResolvedValue(null),
+      crearCabecera: vi.fn(async (datos) => ({
+        id_movimiento: siguienteId++,
+        ...datos,
+      })),
+      crearDetalle: vi.fn(async (datos) => ({ id_detalle: 9, ...datos })),
+      crearDespacho: vi.fn(),
+      actualizarEstado: vi.fn(),
+    };
+    const service = new MovimientosService(
+      dataSource,
+      stockRepo as unknown as StockRepository,
+      movimientoRepo as unknown as MovimientoRepository,
+      {} as ReservaStrategy,
+    );
+    return { service, stockRepo, movimientoRepo };
+  }
+
+  it('despacho parcial: EGRESO de lo recolectado, LIBERACION del resto y reserva COMPLETADO', async () => {
+    const { service, stockRepo, movimientoRepo } =
+      crearServicioDespacho(reservaPendiente());
+
+    const res = await service.registrarDespacho(despachoDto);
+
+    expect(
+      stockRepo.descontarReservado.mock.calls.map((c) => c.slice(0, 3)),
+    ).toEqual([
+      [1, 2, 7],
+      [1, 5, 3],
+      [2, 4, 1],
+    ]);
+    expect(
+      stockRepo.liberarReservado.mock.calls.map((c) => c.slice(0, 3)),
+    ).toEqual([[1, 5, 20]]);
+    expect(res.egreso).toMatchObject({
+      id_movimiento: 40,
+      tipo_operacion: 'EGRESO',
+      id_empleado: 7,
+      id_pedido: 1001,
+    });
+    expect(res.liberacion).toMatchObject({
+      tipo_operacion: 'LIBERACION',
+      detalles: [{ id_producto: 1, id_bodega: 5, cantidad: 20 }],
+    });
+    expect(movimientoRepo.crearDespacho).toHaveBeenCalledWith(
+      {
+        id_movimiento: 40,
+        id_despacho: 'GD-52341',
+        observaciones_picking: null,
+      },
+      expect.anything(),
+    );
+    expect(movimientoRepo.actualizarEstado).toHaveBeenCalledWith(
+      30,
+      'COMPLETADO',
+      expect.anything(),
+    );
+  });
+
+  it('despacho completo: sin LIBERACION', async () => {
+    const { service, stockRepo } = crearServicioDespacho(reservaPendiente());
+
+    const res = await service.registrarDespacho({
+      ...despachoDto,
+      lineas: [
+        { id_producto: 1, cantidad: 30 },
+        { id_producto: 2, cantidad: 1 },
+      ],
+    });
+
+    expect(res.liberacion).toBeNull();
+    expect(stockRepo.liberarReservado).not.toHaveBeenCalled();
+  });
+
+  it('si la guía ya se registró para el pedido, la devuelve sin tocar el stock', async () => {
+    const previo = { id_movimiento: 41, id_pedido: 1001 };
+    const { service, stockRepo, movimientoRepo } = crearServicioDespacho(
+      { ...reservaPendiente(), estado: 'COMPLETADO' },
+      { egresoPrevio: previo },
+    );
+
+    const res = await service.registrarDespacho(despachoDto);
+
+    expect(res.egreso).toBe(previo);
+    expect(stockRepo.descontarReservado).not.toHaveBeenCalled();
+    expect(movimientoRepo.crearCabecera).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [
+      'la guía ya se usó en otro pedido',
+      { egresoPrevio: { id_pedido: 999 } },
+      'PENDIENTE',
+    ],
+    ['la reserva ya se despachó con otra guía', {}, 'COMPLETADO'],
+    ['la reserva se anuló', {}, 'ANULADO'],
+    ['el stock reservado no coincide', { stockOk: false }, 'PENDIENTE'],
+  ])('responde 409 si %s', async (_caso, opciones, estado) => {
+    const { service, movimientoRepo } = crearServicioDespacho(
+      { ...reservaPendiente(), estado },
+      opciones,
+    );
+
+    await expect(service.registrarDespacho(despachoDto)).rejects.toThrow(
+      ConflictException,
+    );
+    expect(movimientoRepo.actualizarEstado).not.toHaveBeenCalled();
+  });
+
+  it('responde 404 si el pedido no tiene reserva', async () => {
+    const { service } = crearServicioDespacho(null);
+
+    await expect(service.registrarDespacho(despachoDto)).rejects.toThrow(
+      NotFoundException,
+    );
+  });
+});
+
+describe('MovimientosService.registrarRecepcion', () => {
+  const recepcionDto = {
+    id_oc: 55,
+    id_proveedor: 3,
+    nro_guia_proveedor: 'GP-8812',
+    id_empleado: 4,
+    lineas: [
+      { id_producto: 1, id_bodega: 2, cantidad: 18 },
+      { id_producto: 2, id_bodega: 2, cantidad: 5 },
+    ],
+  };
+
+  function crearServicioRecepcion(
+    opciones: {
+      previa?: object | null;
+      productos?: object[];
+      bodegas?: object[];
+      transaccion?: () => never;
+    } = {},
+  ) {
+    const manager = {
+      findBy: vi.fn(async (entidad: { name: string }) =>
+        entidad.name === 'InvProducto'
+          ? (opciones.productos ?? [
+              { id_producto: 1, activo: true },
+              { id_producto: 2, activo: true },
+            ])
+          : (opciones.bodegas ?? [{ id_bodega: 2 }]),
+      ),
+    };
+    const dataSource = {
+      manager,
+      transaction: opciones.transaccion
+        ? vi.fn(opciones.transaccion)
+        : vi.fn((fn: (m: EntityManager) => unknown) =>
+            fn(manager as unknown as EntityManager),
+          ),
+    } as unknown as DataSource;
+    const stockRepo = { sumarDisponible: vi.fn() };
+    const movimientoRepo = {
+      findRecepcion: vi.fn().mockResolvedValue(opciones.previa ?? null),
+      crearCabecera: vi.fn(async (datos) => ({ id_movimiento: 50, ...datos })),
+      crearRecepcion: vi.fn(),
+      crearDetalle: vi.fn(async (datos) => ({ id_detalle: 1, ...datos })),
+    };
+    const service = new MovimientosService(
+      dataSource,
+      stockRepo as unknown as StockRepository,
+      movimientoRepo as unknown as MovimientoRepository,
+      {} as ReservaStrategy,
+    );
+    return { service, stockRepo, movimientoRepo };
+  }
+
+  // La recepción ya registrada, con las mismas líneas en otro orden.
+  const previaIgual = () => ({
+    recepcion: { id_oc: 55, id_proveedor: 3, nro_guia_proveedor: 'GP-8812' },
+    ingreso: {
+      id_movimiento: 49,
+      detalles: [
+        { id_producto: 2, id_bodega: 2, cantidad: 5 },
+        { id_producto: 1, id_bodega: 2, cantidad: 18 },
+      ],
+    },
+  });
+
+  it('crea el INGRESO, la fila de recepción y suma el stock de cada línea', async () => {
+    const { service, stockRepo, movimientoRepo } = crearServicioRecepcion();
+
+    const res = await service.registrarRecepcion(recepcionDto);
+
+    expect(movimientoRepo.crearCabecera).toHaveBeenCalledWith(
+      { id_empleado: 4, tipo_operacion: 'INGRESO', estado: 'COMPLETADO' },
+      expect.anything(),
+    );
+    expect(movimientoRepo.crearRecepcion).toHaveBeenCalledWith(
+      {
+        id_movimiento: 50,
+        id_oc: 55,
+        id_proveedor: 3,
+        nro_guia_proveedor: 'GP-8812',
+      },
+      expect.anything(),
+    );
+    expect(
+      stockRepo.sumarDisponible.mock.calls.map((c) => c.slice(0, 3)),
+    ).toEqual([
+      [1, 2, 18],
+      [2, 2, 5],
+    ]);
+    expect(res.ingreso.detalles).toHaveLength(2);
+  });
+
+  it('un reintento con los mismos datos devuelve la recepción ya registrada', async () => {
+    const previa = previaIgual();
+    const { service, stockRepo } = crearServicioRecepcion({ previa });
+
+    const res = await service.registrarRecepcion(recepcionDto);
+
+    expect(res.ingreso).toBe(previa.ingreso);
+    expect(stockRepo.sumarDisponible).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [
+      'otras cantidades',
+      {
+        lineas: [
+          { id_producto: 1, id_bodega: 2, cantidad: 17 },
+          { id_producto: 2, id_bodega: 2, cantidad: 5 },
+        ],
+      },
+    ],
+    ['otro proveedor', { id_proveedor: 9 }],
+  ])('responde 409 si la misma guía llega con %s', async (_caso, cambio) => {
+    const { service, stockRepo } = crearServicioRecepcion({
+      previa: previaIgual(),
+    });
+
+    await expect(
+      service.registrarRecepcion({ ...recepcionDto, ...cambio }),
+    ).rejects.toThrow(ConflictException);
+    expect(stockRepo.sumarDisponible).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [
+      'un producto no existe',
+      { productos: [{ id_producto: 1, activo: true }] },
+    ],
+    ['la bodega no existe', { bodegas: [] }],
+  ])('responde 404 si %s y no crea nada', async (_caso, opciones) => {
+    const { service, movimientoRepo } = crearServicioRecepcion(opciones);
+
+    await expect(service.registrarRecepcion(recepcionDto)).rejects.toThrow(
+      NotFoundException,
+    );
+    expect(movimientoRepo.crearCabecera).not.toHaveBeenCalled();
+  });
+
+  it('si choca con el UNIQUE por un reintento simultáneo, devuelve la recepción ganadora', async () => {
+    const previa = previaIgual();
+    const choque = new QueryFailedError('INSERT', [], {
+      code: '23505',
+      constraint: 'uq_recepcion_oc_guia',
+    } as unknown as Error);
+    const { service, movimientoRepo } = crearServicioRecepcion({
+      transaccion: () => {
+        throw choque;
+      },
+    });
+    movimientoRepo.findRecepcion.mockResolvedValueOnce(previa);
+
+    await expect(
+      service.registrarRecepcion(recepcionDto),
+    ).resolves.toMatchObject({
+      ingreso: previa.ingreso,
+    });
+  });
+});

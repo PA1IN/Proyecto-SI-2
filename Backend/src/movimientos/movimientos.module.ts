@@ -7,6 +7,7 @@ import { InvDespachoOperario } from './entities/inv-despacho-operario.entity.js'
 import { InvRecepcionCompra } from './entities/inv-recepcion-compra.entity.js';
 import { ReservaStrategy } from './strategies/reserva.strategy.js';
 import { MovimientosController } from './movimientos.controller.js';
+import { ReservasController } from './reservas.controller.js';
 import { MovimientosService } from './movimientos.service.js';
 import { MovimientoRepository } from './repositories/movimiento.repository.js';
 
@@ -20,7 +21,7 @@ import { MovimientoRepository } from './repositories/movimiento.repository.js';
     ]),
     StockModule,
   ],
-  controllers: [MovimientosController],
+  controllers: [MovimientosController, ReservasController],
   providers: [MovimientoRepository, MovimientosService, ReservaStrategy],
   exports: [MovimientoRepository],
 })

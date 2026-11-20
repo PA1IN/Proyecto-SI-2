@@ -10,9 +10,9 @@ export class InvDespachoOperario {
   @JoinColumn({ name: 'id_movimiento' })
   movimiento: InvMovimiento;
 
-  // TODO Sprint 3: FK a logistica.
-  @Column({ type: 'int', unique: true })
-  id_despacho: number;
+  // Id de la guía de Logística (GD-52341), db/ddl/07. TODO Sprint 3: FK a logistica.
+  @Column({ type: 'varchar', length: 50, unique: true })
+  id_despacho: string;
 
   @Column({ type: 'varchar', length: 255, nullable: true })
   observaciones_picking: string | null;

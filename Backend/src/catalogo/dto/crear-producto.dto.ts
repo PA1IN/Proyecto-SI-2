@@ -1,13 +1,19 @@
 import {
   IsInt,
   IsNotEmpty,
+  IsNumber,
   IsOptional,
   IsString,
   IsUrl,
+  Max,
   MaxLength,
   Min,
+  IsPositive,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+
+// Tope de numeric(10,2): un valor mayor fallaría en la BD con 500.
+const MAX_NUMERIC = 99_999_999.99;
 
 export class CrearProductoDto {
   @ApiProperty({ example: 1, description: 'ID del tema de LEGO' })
@@ -43,4 +49,33 @@ export class CrearProductoDto {
   @IsUrl({ protocols: ['https'], require_protocol: true })
   @MaxLength(500)
   url_imagen?: string;
+
+  // Peso y medidas de la caja. Si no vienen, se estiman por cantidad de piezas (estimarMedidas).
+  @ApiPropertyOptional({ example: 13.2, description: 'Peso de la caja en kg' })
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @IsPositive()
+  @Max(MAX_NUMERIC)
+  peso_unitario_kg?: number;
+
+  @ApiPropertyOptional({ example: 53, description: 'Largo de la caja en cm' })
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @IsPositive()
+  @Max(MAX_NUMERIC)
+  largo_cm?: number;
+
+  @ApiPropertyOptional({ example: 46, description: 'Alto de la caja en cm' })
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @IsPositive()
+  @Max(MAX_NUMERIC)
+  alto_cm?: number;
+
+  @ApiPropertyOptional({ example: 38, description: 'Ancho de la caja en cm' })
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @IsPositive()
+  @Max(MAX_NUMERIC)
+  ancho_cm?: number;
 }
