@@ -17,29 +17,11 @@ import type { UsuarioAutenticado } from './roles.constants.js';
 
 class DevTokenDto {
   @ApiProperty({
-    enum: [
-      ROLES.JEFE_BODEGA,
-      ROLES.OPERADOR_BODEGA,
-      ROLES.CONSULTA,
-      'Jefe',
-      'Operador',
-      'Analista',
-      'Consultor',
-      'Administrador',
-    ],
+    enum: Object.values(ROLES),
     example: ROLES.JEFE_BODEGA,
   })
   @IsString()
-  @IsIn([
-    ROLES.JEFE_BODEGA,
-    ROLES.OPERADOR_BODEGA,
-    ROLES.CONSULTA,
-    'Jefe',
-    'Operador',
-    'Analista',
-    'Consultor',
-    'Administrador',
-  ])
+  @IsIn(Object.values(ROLES))
   role: string;
 
   @ApiPropertyOptional({ example: 1, default: 1 })

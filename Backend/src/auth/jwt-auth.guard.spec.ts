@@ -35,14 +35,10 @@ describe('JwtAuthGuard y RolesGuard', () => {
 
   it.each([
     ['JEFE_BODEGA', ROLES.JEFE_BODEGA],
-    ['Jefe', ROLES.JEFE_BODEGA],
-    ['Coordinador', ROLES.JEFE_BODEGA],
-    ['Administrador', ROLES.JEFE_BODEGA],
+    ['Jefe Bodega', ROLES.JEFE_BODEGA],
     ['OPERADOR_BODEGA', ROLES.OPERADOR_BODEGA],
-    ['Operador', ROLES.OPERADOR_BODEGA],
-    ['Analista', ROLES.OPERADOR_BODEGA],
+    ['operador-bodega', ROLES.OPERADOR_BODEGA],
     ['CONSULTA', ROLES.CONSULTA],
-    ['Consultor', ROLES.CONSULTA],
   ])(
     'acepta el rol %s de RRHH y lo mapea a %s',
     (rolEntrada, rolEsperado) => {
@@ -62,6 +58,19 @@ describe('JwtAuthGuard y RolesGuard', () => {
         rol: rolEsperado,
         rolOriginal: rolEntrada,
       });
+    },
+  );
+
+  it.each(['Jefe', 'Coordinador', 'Administrador', 'Analista', 'Operador'])(
+    'rechaza el rol genérico %s de RRHH (no es del módulo)',
+    (rol) => {
+      const token = firmarJwtHs256(
+        { employeeId: 7, role: rol, exp: Math.floor(Date.now() / 1000) + 60 },
+        SECRETO,
+      );
+      expect(() =>
+        guard.canActivate(crearContexto(`Bearer ${token}`).context),
+      ).toThrow(UnauthorizedException);
     },
   );
 

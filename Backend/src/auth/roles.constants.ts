@@ -13,24 +13,9 @@ export interface UsuarioAutenticado {
   username?: string;
 }
 
-const EQUIVALENCIAS_ROL: Record<string, RolModulo> = {
-  //roles propios
-  JEFE_BODEGA: ROLES.JEFE_BODEGA,
-  OPERADOR_BODEGA: ROLES.OPERADOR_BODEGA,
-  CONSULTA: ROLES.CONSULTA,
-
-  //roles segun rrhh
-  ADMIN: ROLES.JEFE_BODEGA,
-  ADMINISTRADOR: ROLES.JEFE_BODEGA,
-  JEFE: ROLES.JEFE_BODEGA,
-  COORDINADOR: ROLES.JEFE_BODEGA,
-
-  OPERADOR: ROLES.OPERADOR_BODEGA,
-  OPERARIO: ROLES.OPERADOR_BODEGA,
-  ANALISTA: ROLES.OPERADOR_BODEGA,
-
-  CONSULTOR: ROLES.CONSULTA,
-};
+// Solo los roles del módulo, creados por RRHH con estos nombres. Los roles genéricos de RRHH
+// (Jefe, Analista, Administrador...) no se aceptan: son de toda la empresa, no de Inventario.
+const ROLES_ACEPTADOS: ReadonlySet<string> = new Set(Object.values(ROLES));
 
 export function normalizarRol(rolCrudo: unknown): RolModulo | null {
   if (typeof rolCrudo !== 'string') return null;
@@ -40,5 +25,5 @@ export function normalizarRol(rolCrudo: unknown): RolModulo | null {
     .replace(/[\u0300-\u036f]/g, '')
     .toUpperCase()
     .replace(/[\s-]+/g, '_');
-  return EQUIVALENCIAS_ROL[limpio] ?? null;
+  return ROLES_ACEPTADOS.has(limpio) ? (limpio as RolModulo) : null;
 }
