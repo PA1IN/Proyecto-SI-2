@@ -70,7 +70,9 @@ export function verificarJwtHs256(
     throw new UnauthorizedException('El token JWT ha expirado');
   }
 
-  const rawId = payload.employeeId ?? payload.id_empleado ?? payload.sub;
+  // Sin respaldo a sub: en RRHH es el id del usuario, no el de rrhh.empleado, y el movimiento
+  // quedaría a nombre de otro empleado (o fallaría la FK).
+  const rawId = payload.employeeId;
   const idEmpleado = typeof rawId === 'string' ? Number(rawId) : rawId;
   if (
     typeof idEmpleado !== 'number' ||

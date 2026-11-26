@@ -101,6 +101,21 @@ describe('JwtAuthGuard y RolesGuard', () => {
     }
   });
 
+  it('rechaza un token sin employeeId aunque traiga sub o id_empleado', () => {
+    const token = firmarJwtHs256(
+      {
+        sub: 3,
+        id_empleado: 3,
+        role: ROLES.JEFE_BODEGA,
+        exp: Math.floor(Date.now() / 1000) + 60,
+      },
+      SECRETO,
+    );
+    expect(() =>
+      guard.canActivate(crearContexto(`Bearer ${token}`).context),
+    ).toThrow(/employeeId/);
+  });
+
   it('RolesGuard permite el paso si el rol coincide y lanza 403 si no', () => {
     const rolesReflector = {
       getAllAndOverride: () => [ROLES.JEFE_BODEGA],
