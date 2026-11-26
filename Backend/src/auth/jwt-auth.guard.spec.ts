@@ -89,6 +89,18 @@ describe('JwtAuthGuard y RolesGuard', () => {
     ).toThrow(UnauthorizedException);
   });
 
+  it('rechaza un token sin exp o con exp que no es número', () => {
+    for (const exp of [undefined, '9999999999']) {
+      const token = firmarJwtHs256(
+        { employeeId: 1, role: ROLES.JEFE_BODEGA, exp },
+        SECRETO,
+      );
+      expect(() =>
+        guard.canActivate(crearContexto(`Bearer ${token}`).context),
+      ).toThrow(/expiración/);
+    }
+  });
+
   it('RolesGuard permite el paso si el rol coincide y lanza 403 si no', () => {
     const rolesReflector = {
       getAllAndOverride: () => [ROLES.JEFE_BODEGA],

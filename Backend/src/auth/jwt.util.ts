@@ -60,11 +60,14 @@ export function verificarJwtHs256(
     throw new UnauthorizedException('Firma del token JWT inválida');
   }
 
-  if (typeof payload.exp === 'number') {
-    const ahoraSegundos = Math.floor(Date.now() / 1000);
-    if (ahoraSegundos >= payload.exp) {
-      throw new UnauthorizedException('El token JWT ha expirado');
-    }
+  // Sin exp, un token filtrado serviría para siempre: se exige (RRHH lo emite con 8 horas).
+  if (typeof payload.exp !== 'number') {
+    throw new UnauthorizedException(
+      'El token JWT no tiene fecha de expiración',
+    );
+  }
+  if (Math.floor(Date.now() / 1000) >= payload.exp) {
+    throw new UnauthorizedException('El token JWT ha expirado');
   }
 
   const rawId = payload.employeeId ?? payload.id_empleado ?? payload.sub;
