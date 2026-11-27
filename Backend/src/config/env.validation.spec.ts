@@ -44,4 +44,18 @@ describe('validate (variables de entorno)', () => {
   it('rechaza un NODE_ENV desconocido', () => {
     expect(() => validate({ NODE_ENV: 'staging' })).toThrow(/NODE_ENV/);
   });
+
+  it('valida el largo de JWT_SECRET', () => {
+    expect(validate({}).JWT_SECRET).toBe('');
+    expect(validate({ JWT_SECRET: 'secreto-compartido-rrhh' }).JWT_SECRET).toBe(
+      'secreto-compartido-rrhh',
+    );
+    expect(() => validate({ JWT_SECRET: 'corto' })).toThrow(/JWT_SECRET/);
+  });
+
+  it('AUTH_DEV_TOKENS queda apagado salvo que sea "true"', () => {
+    expect(validate({}).AUTH_DEV_TOKENS).toBe(false);
+    expect(validate({ AUTH_DEV_TOKENS: 'false' }).AUTH_DEV_TOKENS).toBe(false);
+    expect(validate({ AUTH_DEV_TOKENS: 'true' }).AUTH_DEV_TOKENS).toBe(true);
+  });
 });

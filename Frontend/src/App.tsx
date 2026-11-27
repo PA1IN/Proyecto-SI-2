@@ -1,11 +1,17 @@
+import { useState } from 'react';
 import { BrowserRouter, Routes, Route, NavLink } from 'react-router-dom';
 import Productos from './Productos';
 import Bodegas from './Bodegas';
 import CrearProducto from './CrearProducto';
 import IngresoStock from './IngresoStock';
 import DetalleProducto from './DetalleProducto';
+import Login from './Login';
+import { USE_MOCK, cerrarSesion, leerToken } from './api';
 
 export default function App() {
+  const [conSesion, setConSesion] = useState(USE_MOCK || leerToken() !== null);
+  if (!conSesion) return <Login onLogin={() => setConSesion(true)} />;
+
   return (
     <BrowserRouter>
       <header className="banner">
@@ -25,6 +31,11 @@ export default function App() {
             <NavLink to="/stock/ingreso" className="boton boton--header">
               + Ingreso de Stock
             </NavLink>
+            {!USE_MOCK && (
+              <button className="boton boton--header" onClick={cerrarSesion}>
+                Cerrar sesión
+              </button>
+            )}
           </div>
         </div>
       </header>

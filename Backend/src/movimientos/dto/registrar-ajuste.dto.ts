@@ -2,11 +2,6 @@ import { IsInt, IsNotEmpty, NotEquals } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class RegistrarAjusteDto {
-  @ApiProperty({ example: 1 })
-  @IsInt()
-  @IsNotEmpty()
-  id_empleado: number;
-
   @ApiProperty({ example: 5 })
   @IsInt()
   @IsNotEmpty()

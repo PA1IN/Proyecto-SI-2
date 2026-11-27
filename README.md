@@ -20,12 +20,12 @@ El módulo es dueño del **maestro de productos** (`id_producto`) y del **stock 
 ```
 Backend/
 ├─ db/
-│  ├─ ddl/        tablas, triggers y cambios del Sprint 3 (03 a 07)  (schema inventario)
+│  ├─ ddl/        tablas, triggers y cambios del Sprint 3 (03 a 08)  (schema inventario)
 │  ├─ dml/        temas, bodegas, 120 productos, stock inicial, imágenes y medidas estimadas
 │  ├─ local/      crea el schema en el Postgres de Docker
 │  └─ test/       validar_ddl.sql (prueba restricciones y triggers, termina en ROLLBACK)
 ├─ src/
-│  ├─ auth/         API key de los módulos que nos llaman
+│  ├─ auth/         JWT de RRHH, roles y API key de los módulos que nos llaman
 │  ├─ catalogo/     productos y temas
 │  ├─ stock/        bodegas y stock por bodega
 │  ├─ movimientos/  ingresos, ajustes, historial, reservas, despachos y recepciones
@@ -58,7 +58,7 @@ docker compose up -d
 La primera vez, Docker crea la base `si2_local` y el schema `inventario`. Después hay que cargar las tablas y los datos con los scripts del repo, en este orden:
 
 ```bash
-docker exec inventario-postgres psql -U inventario -d si2_local -v ON_ERROR_STOP=1 -f /db/ddl/01_tablas.sql -f /db/ddl/02_triggers.sql -f /db/ddl/03_imagen_producto.sql -f /db/ddl/04_empleado_nullable.sql -f /db/ddl/05_reserva_unica.sql -f /db/ddl/06_medidas_producto.sql -f /db/ddl/07_despacho_varchar.sql -f /db/dml/01_temas.sql -f /db/dml/02_bodegas.sql -f /db/dml/03_productos.sql -f /db/dml/04_stock_inicial.sql -f /db/dml/05_imagenes_productos.sql -f /db/dml/06_medidas_productos.sql
+docker exec inventario-postgres psql -U inventario -d si2_local -v ON_ERROR_STOP=1 -f /db/ddl/01_tablas.sql -f /db/ddl/02_triggers.sql -f /db/ddl/03_imagen_producto.sql -f /db/ddl/04_empleado_nullable.sql -f /db/ddl/05_reserva_unica.sql -f /db/ddl/06_medidas_producto.sql -f /db/ddl/07_despacho_varchar.sql -f /db/ddl/08_fk_empleado.sql -f /db/dml/01_temas.sql -f /db/dml/02_bodegas.sql -f /db/dml/03_productos.sql -f /db/dml/04_stock_inicial.sql -f /db/dml/05_imagenes_productos.sql -f /db/dml/06_medidas_productos.sql
 ```
 
 Opcional: `-f /db/test/validar_ddl.sql` revisa las restricciones y los triggers sin dejar datos.
@@ -76,6 +76,7 @@ npm run start:dev
 - El `.env.example` ya apunta al Postgres de Docker. Para usar Neon, cambiar las variables `POSTGRES_*` según los comentarios del archivo.
 - **El `.env` nunca se sube al repo**, porque contiene las credenciales de Neon y las API keys.
 - Los endpoints de integración (reserva, liberación, reservas, despacho y recepción) piden una API key por módulo, configurada en `INTEGRACION_API_KEYS=modulo:clave,modulo:clave`. Una clave se genera con `node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"`.
+- Los demás endpoints piden el JWT de RRHH, validado con `JWT_SECRET`. Mientras no esté el login de RRHH, el front usa un login de prueba que pide el token a `POST /api/v1/auth/dev-token`: requiere `AUTH_DEV_TOKENS=true` y un `JWT_SECRET` local de 16 caracteres o más. Nunca activar `AUTH_DEV_TOKENS` con el secreto real de RRHH.
 - La API queda en `http://localhost:3000/api/v1`.
 - Swagger queda en `http://localhost:3000/api/docs`, para probar los endpoints sin el front.
 
@@ -107,32 +108,41 @@ npm run dev
 
 ## Endpoints
 
-Todos van con el prefijo `/api/v1`.
+Todos van con el prefijo `/api/v1`. Los dos tipos de credencial van en `Authorization: Bearer <...>`:
 
-| Método | Ruta | Qué hace |
-| --- | --- | --- |
-| `GET` | `/health` | Estado del servicio |
-| `GET` | `/productos` | Lista los productos activos, con su tema |
-| `GET` | `/productos/temas` | Lista los temas |
-| `GET` | `/productos/catalogo` | Productos activos con su tema y stock disponible total (para e-Commerce) |
-| `GET` | `/productos/:id` | Un producto con su tema y stock disponible total, aunque esté inactivo |
-| `POST` | `/productos` | Crea un producto |
-| `PATCH` | `/productos/:id` | Edita un producto |
-| `DELETE` | `/productos/:id` | Da de baja un producto (`activo = false`) |
-| `GET` | `/bodegas` | Lista las bodegas |
-| `POST` | `/bodegas` | Crea una bodega |
-| `PATCH` | `/bodegas/:id` | Edita una bodega |
-| `GET` | `/stock` | Resumen por producto: disponible, reservado y mínimo (sumados entre bodegas), y cuántas bodegas están bajo su mínimo |
-| `GET` | `/stock/:idProducto` | Stock de un producto en cada bodega |
-| `GET` | `/movimientos` | Historial: los 100 movimientos más recientes, con su detalle |
-| `GET` | `/movimientos/:id` | Un movimiento con su detalle |
-| `POST` | `/movimientos/ingreso` | Registra un ingreso de stock |
-| `POST` | `/movimientos/ajuste` | Registra un ajuste de stock (positivo o negativo; 409 si no alcanza) |
-| `POST` | `/movimientos/reserva` | Reserva el stock de un pedido de e-Commerce. Requiere API key (`Authorization: Bearer`). Todo o nada (409 si una línea no alcanza) e idempotente por `id_pedido`; un pedido cancelado da 409 |
-| `POST` | `/movimientos/liberacion` | Libera la reserva de un pedido cancelado: devuelve el stock a las mismas bodegas y anula la reserva. Requiere API key. Idempotente; 409 si ya se despachó |
-| `GET` | `/reservas?id_pedido=` | La reserva de un pedido: estado y, por línea, producto, bodega, ubicación y cantidad. Para el picking de Logística. Requiere API key; 404 si el pedido no tiene reserva |
-| `POST` | `/movimientos/despacho` | Logística confirma una guía: `EGRESO` de lo recolectado y `LIBERACION` de lo que faltó, y la reserva queda `COMPLETADO`. Requiere API key. `lineas` trae todos los productos de la reserva (0 si no se recolectó). Idempotente por `id_despacho` |
-| `POST` | `/movimientos/recepcion` | Logística recibe una OC: `INGRESO` de lo neto (recibido menos dañado) en cada bodega. Requiere API key. Idempotente por `id_oc` + `nro_guia_proveedor`; la misma guía con otros datos da 409 |
+- **JWT de RRHH**, para los empleados. El backend toma `employeeId` y `role` del token, y el empleado nunca viene en el body. Solo acepta los roles del módulo: `JEFE_BODEGA`, `OPERADOR_BODEGA` y `CONSULTA`. El token debe traer `exp`.
+- **API key del módulo**, para e-Commerce y Logística (*API key* en la columna Acceso).
+
+En la columna Acceso: **Todos** son los tres roles, **Jefe y Op.** son `JEFE_BODEGA` y `OPERADOR_BODEGA`, y **Jefe** es solo `JEFE_BODEGA`.
+
+| Método | Ruta | Acceso | Qué hace |
+| --- | --- | --- | --- |
+| `GET` | `/health` | Público | Estado del servicio |
+| `POST` | `/auth/dev-token` | Público | Token de prueba para el login del front. Solo con `AUTH_DEV_TOKENS=true` (si no, 403) |
+| `GET` | `/auth/me` | Todos | El empleado y el rol del token |
+| `GET` | `/productos` | Todos | Lista los productos activos, con su tema |
+| `GET` | `/productos/temas` | Todos | Lista los temas |
+| `GET` | `/productos/catalogo` | Público | Productos activos con su tema y stock disponible total (para e-Commerce) |
+| `GET` | `/productos/:id` | Público | Un producto con su tema y stock disponible total, aunque esté inactivo |
+| `POST` | `/productos` | Jefe | Crea un producto |
+| `PATCH` | `/productos/:id` | Jefe | Edita un producto |
+| `DELETE` | `/productos/:id` | Jefe | Da de baja un producto (`activo = false`) |
+| `GET` | `/bodegas` | Todos | Lista las bodegas |
+| `POST` | `/bodegas` | Jefe | Crea una bodega |
+| `PATCH` | `/bodegas/:id` | Jefe | Edita una bodega |
+| `GET` | `/stock` | Todos | Resumen por producto: disponible, reservado y mínimo (sumados entre bodegas), y cuántas bodegas están bajo su mínimo |
+| `GET` | `/stock/:idProducto` | Todos | Stock de un producto en cada bodega |
+| `GET` | `/movimientos` | Jefe y Op. | Historial: los 100 movimientos más recientes, con su detalle |
+| `GET` | `/movimientos/:id` | Jefe y Op. | Un movimiento con su detalle |
+| `POST` | `/movimientos/ingreso` | Jefe y Op. | Registra un ingreso de stock |
+| `POST` | `/movimientos/ajuste` | Jefe | Registra un ajuste de stock (positivo o negativo; 409 si no alcanza) |
+| `POST` | `/movimientos/reserva` | API key | Reserva el stock de un pedido de e-Commerce. Todo o nada (409 si una línea no alcanza) e idempotente por `id_pedido`; un pedido cancelado da 409 |
+| `POST` | `/movimientos/liberacion` | API key | Libera la reserva de un pedido cancelado: devuelve el stock a las mismas bodegas y anula la reserva. Idempotente; 409 si ya se despachó |
+| `GET` | `/reservas?id_pedido=` | API key | La reserva de un pedido: estado y, por línea, producto, bodega, ubicación y cantidad. Para el picking de Logística; 404 si el pedido no tiene reserva |
+| `POST` | `/movimientos/despacho` | API key | Logística confirma una guía: `EGRESO` de lo recolectado y `LIBERACION` de lo que faltó, y la reserva queda `COMPLETADO`. `lineas` trae todos los productos de la reserva (0 si no se recolectó). Idempotente por `id_despacho` |
+| `POST` | `/movimientos/recepcion` | API key | Logística recibe una OC: `INGRESO` de lo neto (recibido menos dañado) en cada bodega. Idempotente por `id_oc` + `nro_guia_proveedor`; la misma guía con otros datos da 409 |
+
+En despacho y recepción, `id_empleado` va en el body (Logística no usa el JWT de RRHH) y debe existir en `rrhh.empleado`: si no, responde 400.
 
 ### Ejemplos de body
 
@@ -145,10 +155,10 @@ Crear producto:
 Registrar ingreso:
 
 ```json
-{ "id_empleado": 1, "id_producto": 1, "id_bodega": 1, "cantidad": 10 }
+{ "id_producto": 1, "id_bodega": 1, "cantidad": 10 }
 ```
 
-`id_empleado` va en el body solo por ahora. Cuando esté la autenticación, saldrá del token.
+El empleado sale del token: un `id_empleado` en el body da 400.
 
 ### Validaciones
 
@@ -160,8 +170,9 @@ Los errores responden con el código HTTP real y un formato común:
 
 | Caso | Código |
 | --- | --- |
-| Campos faltantes, de tipo incorrecto o no permitidos; cantidad 0 o negativa | 400 |
-| Falta la API key o no es válida (endpoints de integración) | 401 |
+| Campos faltantes, de tipo incorrecto o no permitidos; cantidad 0 o negativa; empleado que no existe en RRHH | 400 |
+| Falta el token o la API key, o no es válido (firma, vencimiento, sin `exp` o `employeeId`, rol que no es del módulo) | 401 |
+| El rol del token no tiene permiso para el endpoint | 403 |
 | Tema, producto, bodega o reserva inexistente (o producto inactivo) | 404 |
 | SKU repetido; stock insuficiente; reserva ya despachada o anulada; guía ya usada con otros datos | 409 |
 
@@ -197,5 +208,5 @@ npm run build
 
 ## Pendiente
 
-- **Sprint 3:** autenticación y roles con el JWT de RRHH, las FKs hacia las tablas de los otros módulos, y las pantallas del front (imagen del producto, login, ajuste e historial). Las integraciones con e-Commerce y Logística ya están en la API; falta probarlas con esos equipos.
+- **Sprint 3:** el login real con RRHH (hoy el front usa el token de prueba), las FKs hacia las tablas de los otros módulos (la de `rrhh.empleado` ya está) y las pantallas del front (imagen del producto, ajuste e historial). Las integraciones con e-Commerce y Logística ya están en la API; falta probarlas con esos equipos.
 - **Sprint 4:** 100 o más registros en una tabla crítica, KPIs y dashboard en Power BI.

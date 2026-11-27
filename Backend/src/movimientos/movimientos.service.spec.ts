@@ -6,7 +6,8 @@ import { InvMovimiento } from './entities/inv-movimiento.entity.js';
 import { MovimientoRepository } from './repositories/movimiento.repository.js';
 import { ReservaStrategy } from './strategies/reserva.strategy.js';
 
-const dto = { id_empleado: 1, id_producto: 5, id_bodega: 2, cantidad: 50 };
+const dto = { id_producto: 5, id_bodega: 2, cantidad: 50 };
+const idEmpleado = 1;
 
 function crearServicio(
   producto: object | null,
@@ -42,7 +43,7 @@ describe('MovimientosService.registrarIngreso', () => {
   it('crea la cabecera INGRESO COMPLETADO, el detalle y suma el stock', async () => {
     const { service, stockRepo } = crearServicio({ activo: true });
 
-    const res: InvMovimiento = await service.registrarIngreso(dto);
+    const res: InvMovimiento = await service.registrarIngreso(dto, idEmpleado);
 
     expect(res).toMatchObject({
       id_movimiento: 3,
@@ -79,7 +80,7 @@ describe('MovimientosService.registrarIngreso', () => {
         bodega,
       );
 
-      await expect(service.registrarIngreso(dto)).rejects.toThrow(
+      await expect(service.registrarIngreso(dto, idEmpleado)).rejects.toThrow(
         NotFoundException,
       );
       expect(movimientoRepo.crearCabecera).not.toHaveBeenCalled();
@@ -92,7 +93,10 @@ describe('MovimientosService.registrarAjuste', () => {
   it('ajuste positivo: suma el stock y crea el movimiento AJUSTE', async () => {
     const { service, stockRepo } = crearServicio({ activo: true });
 
-    const res = await service.registrarAjuste({ ...dto, cantidad: 4 });
+    const res = await service.registrarAjuste(
+      { ...dto, cantidad: 4 },
+      idEmpleado,
+    );
 
     expect(res).toMatchObject({
       tipo_operacion: 'AJUSTE',
@@ -110,7 +114,10 @@ describe('MovimientosService.registrarAjuste', () => {
   it('ajuste negativo: resta con UPDATE condicional y guarda la cantidad negativa', async () => {
     const { service, stockRepo } = crearServicio({ activo: true });
 
-    const res = await service.registrarAjuste({ ...dto, cantidad: -3 });
+    const res = await service.registrarAjuste(
+      { ...dto, cantidad: -3 },
+      idEmpleado,
+    );
 
     expect(stockRepo.restarDisponible).toHaveBeenCalledWith(
       5,
@@ -130,7 +137,7 @@ describe('MovimientosService.registrarAjuste', () => {
     );
 
     await expect(
-      service.registrarAjuste({ ...dto, cantidad: -3 }),
+      service.registrarAjuste({ ...dto, cantidad: -3 }, idEmpleado),
     ).rejects.toThrow(ConflictException);
     expect(movimientoRepo.crearCabecera).not.toHaveBeenCalled();
   });

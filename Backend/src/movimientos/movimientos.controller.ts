@@ -9,11 +9,16 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { ApiKeyGuard } from '../auth/api-key.guard.js';
+import { CurrentUser, Roles } from '../auth/auth.decorators.js';
+import { ROLES } from '../auth/roles.constants.js';
+import type { UsuarioAutenticado } from '../auth/roles.constants.js';
 import { MovimientosService } from './movimientos.service.js';
 import { RegistrarIngresoDto } from './dto/registrar-ingreso.dto.js';
 import { RegistrarAjusteDto } from './dto/registrar-ajuste.dto.js';
 import { RegistrarReservaDto } from './dto/registrar-reserva.dto.js';
 import { LiberarReservaDto } from './dto/liberar-reserva.dto.js';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
+import { RolesGuard } from '../auth/roles.guard.js';
 import { RegistrarDespachoDto } from './dto/registrar-despacho.dto.js';
 import { RegistrarRecepcionDto } from './dto/registrar-recepcion.dto.js';
 
@@ -23,23 +28,41 @@ export class MovimientosController {
   constructor(private readonly movimientosService: MovimientosService) {}
 
   @Get()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(ROLES.JEFE_BODEGA, ROLES.OPERADOR_BODEGA)
+  @ApiBearerAuth()
   async obtenerHistorial() {
     return this.movimientosService.obtenerHistorial();
   }
 
   @Get(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(ROLES.JEFE_BODEGA, ROLES.OPERADOR_BODEGA)
+  @ApiBearerAuth()
   async obtenerMovimientoPorId(@Param('id', ParseIntPipe) id: number) {
     return this.movimientosService.obtenerMovimientoPorId(id);
   }
 
   @Post('ingreso')
-  async registrarIngreso(@Body() dto: RegistrarIngresoDto) {
-    return this.movimientosService.registrarIngreso(dto);
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(ROLES.JEFE_BODEGA, ROLES.OPERADOR_BODEGA)
+  @ApiBearerAuth()
+  async registrarIngreso(
+    @Body() dto: RegistrarIngresoDto,
+    @CurrentUser() user: UsuarioAutenticado,
+  ) {
+    return this.movimientosService.registrarIngreso(dto, user.id_empleado);
   }
 
   @Post('ajuste')
-  async registrarAjuste(@Body() dto: RegistrarAjusteDto) {
-    return this.movimientosService.registrarAjuste(dto);
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(ROLES.JEFE_BODEGA)
+  @ApiBearerAuth()
+  async registrarAjuste(
+    @Body() dto: RegistrarAjusteDto,
+    @CurrentUser() user: UsuarioAutenticado,
+  ) {
+    return this.movimientosService.registrarAjuste(dto, user.id_empleado);
   }
 
   // Lo llama e-Commerce tras confirmar el pago, con su API key.

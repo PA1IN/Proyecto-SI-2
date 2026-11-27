@@ -67,6 +67,19 @@ export class EnvironmentVariables {
       'INTEGRACION_API_KEYS debe tener el formato modulo:clave,modulo:clave (claves de 16 caracteres o más)',
   })
   INTEGRACION_API_KEYS: string = '';
+
+  //Secreto compartido con rrhh
+  //Vacío = rechaza cualquier jwt (401)
+  @Matches(/^$|^.{16,}$/, {
+    message: 'JWT_SECRET debe tener al menos 16 caracteres (o estar vacio)',
+  })
+  JWT_SECRET: string = '';
+
+  // Habilita POST /auth/dev-token. Firma con JWT_SECRET: nunca activarlo con el secreto real de RRHH.
+  @Transform(
+    ({ obj }) => obj.AUTH_DEV_TOKENS === 'true' || obj.AUTH_DEV_TOKENS === true,
+  )
+  AUTH_DEV_TOKENS: boolean = false;
 }
 
 // Lo usa ConfigModule al arrancar: si una variable no es válida, la app no inicia.

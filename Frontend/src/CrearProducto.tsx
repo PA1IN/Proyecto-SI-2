@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { fetchTemas } from './api';
+import { apiFetch, fetchTemas } from './api';
 import type { MedidasProducto, Tema } from './tipos';
 
 type MedidasFormulario = Record<keyof MedidasProducto, string>;
@@ -87,7 +87,7 @@ export default function CrearProducto() {
     }
 
     try {
-      const res = await fetch('/api/v1/productos', {
+      const res = await apiFetch('/api/v1/productos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
