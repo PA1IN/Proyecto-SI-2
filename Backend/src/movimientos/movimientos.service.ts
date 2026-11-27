@@ -48,7 +48,10 @@ export class MovimientosService {
     return mov;
   }
 
-  async registrarIngreso(dto: RegistrarIngresoDto, idEmpleado: number,): Promise<InvMovimiento> {
+  async registrarIngreso(
+    dto: RegistrarIngresoDto,
+    idEmpleado: number,
+  ): Promise<InvMovimiento> {
     return this.dataSource.transaction(async (manager) => {
       const producto = await manager.findOneBy(InvProducto, {
         id_producto: dto.id_producto,
@@ -565,7 +568,10 @@ export class MovimientosService {
     );
   }
 
-  async registrarAjuste(dto: RegistrarAjusteDto, idEmpleado: number): Promise<InvMovimiento> {
+  async registrarAjuste(
+    dto: RegistrarAjusteDto,
+    idEmpleado: number,
+  ): Promise<InvMovimiento> {
     return this.dataSource.transaction(async (manager) => {
       const producto = await manager.findOneBy(InvProducto, {
         id_producto: dto.id_producto,

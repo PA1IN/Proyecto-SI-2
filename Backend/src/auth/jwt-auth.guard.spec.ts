@@ -39,27 +39,24 @@ describe('JwtAuthGuard y RolesGuard', () => {
     ['OPERADOR_BODEGA', ROLES.OPERADOR_BODEGA],
     ['operador-bodega', ROLES.OPERADOR_BODEGA],
     ['CONSULTA', ROLES.CONSULTA],
-  ])(
-    'acepta el rol %s de RRHH y lo mapea a %s',
-    (rolEntrada, rolEsperado) => {
-      const token = firmarJwtHs256(
-        {
-          employeeId: 7,
-          role: rolEntrada,
-          exp: Math.floor(Date.now() / 1000) + 60,
-        },
-        SECRETO,
-      );
-      const { request, context } = crearContexto(`Bearer ${token}`);
+  ])('acepta el rol %s de RRHH y lo mapea a %s', (rolEntrada, rolEsperado) => {
+    const token = firmarJwtHs256(
+      {
+        employeeId: 7,
+        role: rolEntrada,
+        exp: Math.floor(Date.now() / 1000) + 60,
+      },
+      SECRETO,
+    );
+    const { request, context } = crearContexto(`Bearer ${token}`);
 
-      expect(guard.canActivate(context)).toBe(true);
-      expect(request.user).toMatchObject({
-        id_empleado: 7,
-        rol: rolEsperado,
-        rolOriginal: rolEntrada,
-      });
-    },
-  );
+    expect(guard.canActivate(context)).toBe(true);
+    expect(request.user).toMatchObject({
+      id_empleado: 7,
+      rol: rolEsperado,
+      rolOriginal: rolEntrada,
+    });
+  });
 
   it.each(['Jefe', 'Coordinador', 'Administrador', 'Analista', 'Operador'])(
     'rechaza el rol genérico %s de RRHH (no es del módulo)',
@@ -75,7 +72,10 @@ describe('JwtAuthGuard y RolesGuard', () => {
   );
 
   it('rechaza un token firmado con otro secreto o expirado', () => {
-    const malo = firmarJwtHs256({ employeeId: 1, role: 'Jefe' }, 'otro-secreto');
+    const malo = firmarJwtHs256(
+      { employeeId: 1, role: 'Jefe' },
+      'otro-secreto',
+    );
     expect(() =>
       guard.canActivate(crearContexto(`Bearer ${malo}`).context),
     ).toThrow(UnauthorizedException);

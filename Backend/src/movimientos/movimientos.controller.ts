@@ -10,7 +10,7 @@ import {
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { ApiKeyGuard } from '../auth/api-key.guard.js';
 import { CurrentUser, Roles } from '../auth/auth.decorators.js';
-import { ROLES } from '../auth/roles.constants.js'
+import { ROLES } from '../auth/roles.constants.js';
 import type { UsuarioAutenticado } from '../auth/roles.constants.js';
 import { MovimientosService } from './movimientos.service.js';
 import { RegistrarIngresoDto } from './dto/registrar-ingreso.dto.js';
@@ -47,7 +47,10 @@ export class MovimientosController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(ROLES.JEFE_BODEGA, ROLES.OPERADOR_BODEGA)
   @ApiBearerAuth()
-  async registrarIngreso(@Body() dto: RegistrarIngresoDto, @CurrentUser() user: UsuarioAutenticado) {
+  async registrarIngreso(
+    @Body() dto: RegistrarIngresoDto,
+    @CurrentUser() user: UsuarioAutenticado,
+  ) {
     return this.movimientosService.registrarIngreso(dto, user.id_empleado);
   }
 
@@ -55,7 +58,10 @@ export class MovimientosController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(ROLES.JEFE_BODEGA)
   @ApiBearerAuth()
-  async registrarAjuste(@Body() dto: RegistrarAjusteDto, @CurrentUser() user: UsuarioAutenticado) {
+  async registrarAjuste(
+    @Body() dto: RegistrarAjusteDto,
+    @CurrentUser() user: UsuarioAutenticado,
+  ) {
     return this.movimientosService.registrarAjuste(dto, user.id_empleado);
   }
 

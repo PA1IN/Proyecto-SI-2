@@ -83,6 +83,7 @@ Contexto y reglas de trabajo para retomar el proyecto en cualquier sesión. Resp
     - `db/ddl/04` (13-11): `id_empleado` nullable solo en `RESERVA` y `LIBERACION`.
     - `db/ddl/05` (14-11): índice único de una reserva por pedido.
     - `db/ddl/06`, `db/ddl/07` y `db/dml/06` (16-11): peso y medidas (129 de 129 productos con medidas) e `id_despacho` como `varchar(50)`.
+    - `db/ddl/08` (26-11): FK `fk_movimiento_empleado` de `id_empleado` a `rrhh.empleado`, con `ON DELETE RESTRICT` y `NOT VALID`, porque el movimiento 13 (un `INGRESO` de la demo del Sprint 2) tiene el empleado 999, que no existe en RRHH, y es inmutable. RRHH está avisado.
   - Los respaldos con `pg_dump -n inventario` se guardan en el equipo de dazztyn, fuera del repo. El último confirmado es del 11-11; conviene uno nuevo antes del próximo DDL.
   - Un SKU ya usado no sirve para crear otro producto en una demo (da 409).
 - **Otros schemas (visto en DBeaver el 11-11-2026):**
@@ -189,7 +190,7 @@ RRHH gestiona el login y emite el JWT, con roles por módulo. Nuestro backend so
 | `OPERADOR_BODEGA` | Trabajador de bodega | Operación diaria: registrar ingresos y consultar stock |
 | `CONSULTA` | Marketing u otras áreas | Solo lectura: catálogo, stock y reportes en unidades |
 
-Por decidir: si el rol `Administrador` de RRHH tiene acceso total en nuestros guards (antes lo llamábamos `ADMIN`).
+**Decidido (25-11-2026):** el guard solo acepta estos tres roles. Los roles genéricos de RRHH (`Administrador`, `Jefe`, `Analista`…) dan 401, porque son de toda la empresa. La comparación tolera mayúsculas, espacios y guiones (`Jefe Bodega` = `JEFE_BODEGA`).
 
 | Acción | Endpoint (referencial) | Jefe | Operador | Consulta |
 | --- | --- | --- | --- | --- |
@@ -203,7 +204,11 @@ Por decidir: si el rol `Administrador` de RRHH tiene acceso total en nuestros gu
 | Cambiar el stock mínimo por bodega | `PATCH /stock/...` (no existe aún) | Sí | No | No |
 | Ver KPIs y alertas | `GET /reportes`, `/alertas` (no existen aún) | Sí | No | Sí |
 
-- **Hoy ningún endpoint pide token.** Los guards son la tarea S3.2.
+- **Los guards aplican esta tabla** (S3.2, rama `auth-jwt-ajustes`): `JwtAuthGuard` y `RolesGuard` con `@Roles`, `@Public` y `@CurrentUser` en `src/auth/`.
+  - Son públicos `GET /health`, `/productos/catalogo` y `/productos/:id` (los usa e-Commerce).
+  - El empleado sale del token: `id_empleado` ya no va en el body de ingreso ni de ajuste.
+  - El token debe traer `exp` y `employeeId` (sin respaldo a `sub`); si no, 401.
+- **Token de prueba:** `POST /auth/dev-token` emite un JWT con el rol y el empleado que se pidan, para el login del front mientras no esté el de RRHH (S3.7). Solo funciona con `AUTH_DEV_TOKENS=true` (por defecto da 403). Firma con `JWT_SECRET`, así que **nunca activarlo con el secreto real de RRHH**: cualquiera podría firmar tokens válidos para todo el ERP.
 - **Sugerencia abierta:** permitir que el Operador vea las alertas de stock bajo, porque es quien repone en bodega.
 
 ### Cómo funciona el token de RRHH (repo revisado el 08-11-2026)
@@ -276,7 +281,7 @@ Backend/
    ├─ catalogo/ bodegas/ stock/ movimientos/ alertas/ integraciones/ reportes/
 ```
 
-Al 16-11-2026 existen `config/`, `common/`, `health/`, `database/`, `auth/` (solo el `ApiKeyGuard`; los guards de JWT y roles son S3.2), `catalogo/`, `stock/` (incluye bodegas) y `movimientos/` (incluye `GET /reservas`). Faltan `alertas/`, `integraciones/` y `reportes/`.
+Al 16-11-2026 existen `config/`, `common/`, `health/`, `database/`, `auth/` (`ApiKeyGuard`, y los guards de JWT y roles de S3.2), `catalogo/`, `stock/` (incluye bodegas) y `movimientos/` (incluye `GET /reservas`). Faltan `alertas/`, `integraciones/` y `reportes/`.
 
 **Endpoints en `main`:**
 - `GET /health`
@@ -285,6 +290,7 @@ Al 16-11-2026 existen `config/`, `common/`, `health/`, `database/`, `auth/` (sol
 - `GET /stock`, `/stock/:idProducto`
 - `GET /movimientos`, `/movimientos/:id`; `POST /movimientos/ingreso`, `/movimientos/ajuste`
 - Con `ApiKeyGuard` (integraciones): `POST /movimientos/reserva`, `/movimientos/liberacion`, `/movimientos/despacho` y `/movimientos/recepcion`; `GET /reservas?id_pedido=`
+- En `auth-jwt-ajustes` (pendiente de PR): `POST /auth/dev-token` y `GET /auth/me`. Con esa rama, los endpoints que no son de integración piden el JWT con los roles de "Roles y permisos del módulo".
 
 ### Reglas técnicas (lecciones del repo de referencia heuremi/backend-inventario)
 
@@ -298,7 +304,7 @@ Al 16-11-2026 existen `config/`, `common/`, `health/`, `database/`, `auth/` (sol
 - Usar baja lógica (`activo`), no borrado físico.
 - Si dos entidades se importan mutuamente, el lado `@ManyToOne` declara el tipo como `Relation<T>`. Si no, en ESM la app compilada se cae al iniciar (`Cannot access 'X' before initialization`). Vitest no detecta este error: hay que probar con `npm run build` y arrancar la app.
 
-## Estado de ramas (al 16-11-2026)
+## Estado de ramas (al 26-11-2026)
 
 `main` tiene todo lo desarrollado. Cada tarea nueva va en una rama propia desde `main` actualizada y entra por PR.
 
@@ -314,14 +320,14 @@ Al 16-11-2026 existen `config/`, `common/`, `health/`, `database/`, `auth/` (sol
 | #19 | `api-key-integraciones` | `ApiKeyGuard` e `id_empleado` nullable (DDL 04) |
 | #20 | `reserva-liberacion` | Reserva y liberación para e-Commerce, índice único (DDL 05) y tests de `calcularAsignacionReserva` |
 | #21 | `integracion-logistica` | Peso y medidas (DDL/DML 06), `id_despacho` texto (DDL 07), `GET /reservas`, despacho y recepción para Logística |
-| — | `docker-backend` | `Dockerfile` y `.dockerignore` del backend |
+| #22 | `docker-backend` | `Dockerfile` y `.dockerignore` del backend |
+| — | `auth-jwt-ajustes` | S3.2 sobre el trabajo de `David-rama`: guards de JWT y roles, empleado desde el token, login de prueba en el front, `AUTH_DEV_TOKENS`, solo los 3 roles del módulo, `exp` y `employeeId` obligatorios, y FK a `rrhh.empleado` (DDL 08) |
 
 ## Plan base del backend
 
 Los pasos 1 a 7 y el 10 están en `main`: configuración validada, `setup-app.ts`, filtro global de errores, `/health`, Postgres local con Docker, DDL y DML, TypeORM y README.
 
 Pendientes del plan base:
-- **Paso 8, autenticación:** ahora es la tarea S3.2.
 - **Paso 9, paginación:** `GET /movimientos` está limitado a los 100 más recientes.
 - **`/health` con `SELECT 1`:** 200 `{ status: 'ok', bd: 'ok' }`, o 503 si no hay conexión.
 - **`npm audit fix`** (sin `--force`) en su propia rama: 3 vulnerabilidades altas (`body-parser` y `multer`, vía `@nestjs/platform-express`).
@@ -340,15 +346,15 @@ Exige: integración con los maestros canónicos, al menos 1 escenario de integra
 | # | Tarea | Depende de |
 | --- | --- | --- |
 | S3.1 | **Reserva y liberación para e-Commerce.** `POST /movimientos/reserva` con `{ id_pedido, lineas: [{ id_producto, cantidad }] }`: un movimiento `RESERVA` `PENDIENTE`, todo o nada (409 si una línea no alcanza), idempotente por `id_pedido`. `POST /movimientos/liberacion` con `{ id_pedido }`: devuelve lo reservado, crea la `LIBERACION` y deja la reserva `ANULADO`. Usa `ReservaStrategy`. El `RegistrarReservaDto` actual recibe un solo producto: cambiarlo a `lineas` | **En `main` (PR #20).** Falta entregar la API key a e-Commerce y probar con ellos |
-| S3.2 | **Autenticación y roles.** Guard de JWT (lee `employeeId` y `role`, secreto en `.env`), guard de roles con los nombres en constantes, tokens de prueba solo en desarrollo y sacar `id_empleado` del body | Se puede avanzar ya; el secreto y los nombres finales los da RRHH |
+| S3.2 | **Autenticación y roles.** Guard de JWT (lee `employeeId` y `role`, secreto en `.env`), guard de roles con los nombres en constantes, tokens de prueba solo en desarrollo y sacar `id_empleado` del body | **Hecho en `auth-jwt-ajustes`** (falta el PR). Faltan el secreto real y que RRHH cree los 3 roles |
 | S3.3 | **Credencial de servicio** para los endpoints de integración. `ApiKeyGuard` con claves por módulo en `INTEGRACION_API_KEYS`, aplicado a S3.1, S3.4, S3.5 y `GET /reservas` | **Hecho.** Claves de e-Commerce y Logística generadas; falta entregarlas por un canal privado |
 | S3.4 | **Despacho.** `POST /movimientos/despacho` (nombre acordado con Logística): `EGRESO` de lo recolectado y `LIBERACION` del resto en una llamada, su fila en `inv_despachos_operario`, y la reserva `COMPLETADO` | **Implementado (16-11, `integracion-logistica`)** |
 | S3.5 | **Recepción de OC.** `POST /movimientos/recepcion`: `INGRESO` con su fila en `inv_recepciones_compra`; idempotente por `id_oc` + `nro_guia_proveedor` (409 si cambian los datos) | **Implementado (16-11, `integracion-logistica`).** Falta validar que `id_proveedor` sea el de la OC cuando exista la tabla de Compras |
-| S3.6 | **FKs a otros módulos** con `ALTER TABLE`. La de `id_empleado` → `rrhh.empleado` ya se puede crear: todos los movimientos usan el empleado 1, que existe. Avisar antes a RRHH, porque `ON DELETE RESTRICT` les impide borrar a ese empleado | Tablas de cada grupo |
+| S3.6 | **FKs a otros módulos** con `ALTER TABLE`. La de `id_empleado` → `rrhh.empleado` está creada en Neon (DDL 08, 26-11, `NOT VALID`). Siguen la de `id_devolucion` (Postventa, ya posible) y las demás | Tablas de cada grupo |
 | S3.7 | **Front:** mostrar la imagen del producto, inicio de sesión con RRHH y pantallas de ajuste e historial | S3.2 para el login |
 | S3.8 | **Devoluciones** con Postventa | Reunión con Postventa |
 
-**Integración cruzada para la demo:** checkout de e-Commerce con nuestra reserva (S3.1). S3.1, S3.3, S3.4 y S3.5 están hechos; falta probar los flujos con e-Commerce y Logística. Siguen S3.2 (autenticación con RRHH), S3.6 (FKs) y S3.7 (front).
+**Integración cruzada para la demo:** checkout de e-Commerce con nuestra reserva (S3.1). S3.1, S3.3, S3.4 y S3.5 están hechos; falta probar los flujos con e-Commerce y Logística. S3.2 está en `auth-jwt-ajustes`, pendiente de PR. Siguen S3.6 (FKs), S3.7 (front) y S3.8 (devoluciones con Postventa).
 
 ## Material de referencia
 

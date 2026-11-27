@@ -45,7 +45,9 @@ export function verificarJwtHs256(
   }
 
   if (header.alg !== 'HS256') {
-    throw new UnauthorizedException('Algoritmo JWT no soportado (se exige HS256)');
+    throw new UnauthorizedException(
+      'Algoritmo JWT no soportado (se exige HS256)',
+    );
   }
 
   const firmaEsperada = createHmac('sha256', secreto)

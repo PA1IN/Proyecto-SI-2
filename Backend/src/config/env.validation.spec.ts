@@ -47,9 +47,9 @@ describe('validate (variables de entorno)', () => {
 
   it('valida el largo de JWT_SECRET', () => {
     expect(validate({}).JWT_SECRET).toBe('');
-    expect(
-      validate({ JWT_SECRET: 'secreto-compartido-rrhh' }).JWT_SECRET,
-    ).toBe('secreto-compartido-rrhh');
+    expect(validate({ JWT_SECRET: 'secreto-compartido-rrhh' }).JWT_SECRET).toBe(
+      'secreto-compartido-rrhh',
+    );
     expect(() => validate({ JWT_SECRET: 'corto' })).toThrow(/JWT_SECRET/);
   });
 
@@ -59,4 +59,3 @@ describe('validate (variables de entorno)', () => {
     expect(validate({ AUTH_DEV_TOKENS: 'true' }).AUTH_DEV_TOKENS).toBe(true);
   });
 });
-

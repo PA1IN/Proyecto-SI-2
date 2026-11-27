@@ -93,7 +93,10 @@ describe('MovimientosService.registrarAjuste', () => {
   it('ajuste positivo: suma el stock y crea el movimiento AJUSTE', async () => {
     const { service, stockRepo } = crearServicio({ activo: true });
 
-    const res = await service.registrarAjuste({ ...dto, cantidad: 4 }, idEmpleado);
+    const res = await service.registrarAjuste(
+      { ...dto, cantidad: 4 },
+      idEmpleado,
+    );
 
     expect(res).toMatchObject({
       tipo_operacion: 'AJUSTE',
@@ -111,7 +114,10 @@ describe('MovimientosService.registrarAjuste', () => {
   it('ajuste negativo: resta con UPDATE condicional y guarda la cantidad negativa', async () => {
     const { service, stockRepo } = crearServicio({ activo: true });
 
-    const res = await service.registrarAjuste({ ...dto, cantidad: -3 }, idEmpleado);
+    const res = await service.registrarAjuste(
+      { ...dto, cantidad: -3 },
+      idEmpleado,
+    );
 
     expect(stockRepo.restarDisponible).toHaveBeenCalledWith(
       5,
