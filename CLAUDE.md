@@ -177,20 +177,22 @@ id_despacho → logistica, id_proveedor e id_oc → compras
 
 - **`DEVOLUCION`:** pendiente con Postventa si reingresa como disponible o queda en revisión.
 - **KPIs:** se definen más adelante con los datos que haya.
-- **Roles:** ver "Roles y permisos del módulo". Falta que RRHH cree nuestros roles y entregue el secreto del JWT.
+- **Roles:** ver "Roles y permisos del módulo". RRHH ya creó nuestros roles (27-11); falta que entregue el secreto del JWT.
 - **Diagrama draw.io:** quitar las tildes de `tipo_operacion`, corregir la errata "inv_movimientos", cambiar "Hereda de" por "FK a", agregar `cantidad_minima` y quitar `coleccion`, `edad_minima` y `tipo_construccion`.
 
 ## Roles y permisos del módulo (acordado el 09-11-2026; faltan detalles con RRHH)
 
 RRHH gestiona el login y emite el JWT, con roles por módulo. Nuestro backend solo lee el empleado y el rol del token validado; el rol nunca viene del body.
 
-| Rol (valor exacto por confirmar con RRHH) | Quién es | Qué hace en el módulo |
+| Rol (en `rrhh.rol` desde el 27-11-2026) | Quién es | Qué hace en el módulo |
 | --- | --- | --- |
 | `JEFE_BODEGA` | Responsable del inventario | Todo: maestro de productos, ajustes, mínimos de stock y reportes |
 | `OPERADOR_BODEGA` | Trabajador de bodega | Operación diaria: registrar ingresos y consultar stock |
-| `CONSULTA` | Marketing u otras áreas | Solo lectura: catálogo, stock y reportes en unidades |
+| `CONSULTA_BODEGA` | Marketing u otras áreas | Solo lectura: catálogo, stock y reportes en unidades |
 
 **Decidido (25-11-2026):** el guard solo acepta estos tres roles. Los roles genéricos de RRHH (`Administrador`, `Jefe`, `Analista`…) dan 401, porque son de toda la empresa. La comparación tolera mayúsculas, espacios y guiones (`Jefe Bodega` = `JEFE_BODEGA`).
+
+**Renombrado (26-11-2026):** `CONSULTA` pasó a `CONSULTA_BODEGA`, para que no choque con un rol de consulta de otro módulo; los tres roles terminan en `_BODEGA`. Un `CONSULTA` a secas da 401.
 
 | Acción | Endpoint (referencial) | Jefe | Operador | Consulta |
 | --- | --- | --- | --- | --- |
@@ -204,7 +206,7 @@ RRHH gestiona el login y emite el JWT, con roles por módulo. Nuestro backend so
 | Cambiar el stock mínimo por bodega | `PATCH /stock/...` (no existe aún) | Sí | No | No |
 | Ver KPIs y alertas | `GET /reportes`, `/alertas` (no existen aún) | Sí | No | Sí |
 
-- **Los guards aplican esta tabla** (S3.2, rama `auth-jwt-ajustes`): `JwtAuthGuard` y `RolesGuard` con `@Roles`, `@Public` y `@CurrentUser` en `src/auth/`.
+- **Los guards aplican esta tabla** (S3.2, PR #23): `JwtAuthGuard` y `RolesGuard` con `@Roles`, `@Public` y `@CurrentUser` en `src/auth/`.
   - Son públicos `GET /health`, `/productos/catalogo` y `/productos/:id` (los usa e-Commerce).
   - El empleado sale del token: `id_empleado` ya no va en el body de ingreso ni de ajuste.
   - El token debe traer `exp` y `employeeId` (sin respaldo a `sub`); si no, 401.
@@ -220,7 +222,7 @@ RRHH gestiona el login y emite el JWT, con roles por módulo. Nuestro backend so
 
 **Pendiente con RRHH:**
 - **Secreto real:** si no configuran `JWT_SECRET`, su código usa un valor por defecto que está en su repo. Deben fijar uno y entregarlo por fuera del repo.
-- **Crear nuestros roles** en `rrhh.rol` con nombres exactos y asignarlos a empleados de prueba.
+- **Roles creados (27-11-2026):** `JEFE_BODEGA` (id 17), `OPERADOR_BODEGA` (18) y `CONSULTA_BODEGA` (19) en `rrhh.rol`. Falta asignarlos a empleados de prueba con usuario en `rrhh.usuario`. Hasta tener eso y el secreto, el front usa el login de prueba.
 - **Un solo rol por token:** toman el primer rol del empleado por `id_rol`. Con roles por módulo, pedir un arreglo `roles` o un solo rol por empleado.
 - **Admin de prueba:** su usuario `admin` (`source: 'demo'`) no existe en la BD. Decidir si lo aceptamos.
 - **Revocación:** validando solo la firma, un empleado bloqueado conserva el acceso hasta que venza su token.
@@ -290,7 +292,7 @@ Al 16-11-2026 existen `config/`, `common/`, `health/`, `database/`, `auth/` (`Ap
 - `GET /stock`, `/stock/:idProducto`
 - `GET /movimientos`, `/movimientos/:id`; `POST /movimientos/ingreso`, `/movimientos/ajuste`
 - Con `ApiKeyGuard` (integraciones): `POST /movimientos/reserva`, `/movimientos/liberacion`, `/movimientos/despacho` y `/movimientos/recepcion`; `GET /reservas?id_pedido=`
-- En `auth-jwt-ajustes` (pendiente de PR): `POST /auth/dev-token` y `GET /auth/me`. Con esa rama, los endpoints que no son de integración piden el JWT con los roles de "Roles y permisos del módulo".
+- `POST /auth/dev-token` y `GET /auth/me`. Los endpoints que no son de integración piden el JWT con los roles de "Roles y permisos del módulo".
 
 ### Reglas técnicas (lecciones del repo de referencia heuremi/backend-inventario)
 
@@ -321,7 +323,8 @@ Al 16-11-2026 existen `config/`, `common/`, `health/`, `database/`, `auth/` (`Ap
 | #20 | `reserva-liberacion` | Reserva y liberación para e-Commerce, índice único (DDL 05) y tests de `calcularAsignacionReserva` |
 | #21 | `integracion-logistica` | Peso y medidas (DDL/DML 06), `id_despacho` texto (DDL 07), `GET /reservas`, despacho y recepción para Logística |
 | #22 | `docker-backend` | `Dockerfile` y `.dockerignore` del backend |
-| — | `auth-jwt-ajustes` | S3.2 sobre el trabajo de `David-rama`: guards de JWT y roles, empleado desde el token, login de prueba en el front, `AUTH_DEV_TOKENS`, solo los 3 roles del módulo, `exp` y `employeeId` obligatorios, y FK a `rrhh.empleado` (DDL 08) |
+| #23 | `auth-jwt-ajustes` | S3.2 sobre el trabajo de `David-rama`: guards de JWT y roles, empleado desde el token, login de prueba en el front, `AUTH_DEV_TOKENS`, solo los 3 roles del módulo, `exp` y `employeeId` obligatorios, y FK a `rrhh.empleado` (DDL 08) |
+| — | `rol-consulta-bodega` | Rol `CONSULTA` renombrado a `CONSULTA_BODEGA` |
 
 ## Plan base del backend
 
@@ -346,7 +349,7 @@ Exige: integración con los maestros canónicos, al menos 1 escenario de integra
 | # | Tarea | Depende de |
 | --- | --- | --- |
 | S3.1 | **Reserva y liberación para e-Commerce.** `POST /movimientos/reserva` con `{ id_pedido, lineas: [{ id_producto, cantidad }] }`: un movimiento `RESERVA` `PENDIENTE`, todo o nada (409 si una línea no alcanza), idempotente por `id_pedido`. `POST /movimientos/liberacion` con `{ id_pedido }`: devuelve lo reservado, crea la `LIBERACION` y deja la reserva `ANULADO`. Usa `ReservaStrategy`. El `RegistrarReservaDto` actual recibe un solo producto: cambiarlo a `lineas` | **En `main` (PR #20).** Falta entregar la API key a e-Commerce y probar con ellos |
-| S3.2 | **Autenticación y roles.** Guard de JWT (lee `employeeId` y `role`, secreto en `.env`), guard de roles con los nombres en constantes, tokens de prueba solo en desarrollo y sacar `id_empleado` del body | **Hecho en `auth-jwt-ajustes`** (falta el PR). Faltan el secreto real y que RRHH cree los 3 roles |
+| S3.2 | **Autenticación y roles.** Guard de JWT (lee `employeeId` y `role`, secreto en `.env`), guard de roles con los nombres en constantes, tokens de prueba solo en desarrollo y sacar `id_empleado` del body | **En `main` (PR #23).** Roles creados en RRHH (27-11). Faltan el secreto real, asignar los roles a empleados de prueba y el login real (S3.7) |
 | S3.3 | **Credencial de servicio** para los endpoints de integración. `ApiKeyGuard` con claves por módulo en `INTEGRACION_API_KEYS`, aplicado a S3.1, S3.4, S3.5 y `GET /reservas` | **Hecho.** Claves de e-Commerce y Logística generadas; falta entregarlas por un canal privado |
 | S3.4 | **Despacho.** `POST /movimientos/despacho` (nombre acordado con Logística): `EGRESO` de lo recolectado y `LIBERACION` del resto en una llamada, su fila en `inv_despachos_operario`, y la reserva `COMPLETADO` | **Implementado (16-11, `integracion-logistica`)** |
 | S3.5 | **Recepción de OC.** `POST /movimientos/recepcion`: `INGRESO` con su fila en `inv_recepciones_compra`; idempotente por `id_oc` + `nro_guia_proveedor` (409 si cambian los datos) | **Implementado (16-11, `integracion-logistica`).** Falta validar que `id_proveedor` sea el de la OC cuando exista la tabla de Compras |
@@ -354,7 +357,7 @@ Exige: integración con los maestros canónicos, al menos 1 escenario de integra
 | S3.7 | **Front:** mostrar la imagen del producto, inicio de sesión con RRHH y pantallas de ajuste e historial | S3.2 para el login |
 | S3.8 | **Devoluciones** con Postventa | Reunión con Postventa |
 
-**Integración cruzada para la demo:** checkout de e-Commerce con nuestra reserva (S3.1). S3.1, S3.3, S3.4 y S3.5 están hechos; falta probar los flujos con e-Commerce y Logística. S3.2 está en `auth-jwt-ajustes`, pendiente de PR. Siguen S3.6 (FKs), S3.7 (front) y S3.8 (devoluciones con Postventa).
+**Integración cruzada para la demo:** checkout de e-Commerce con nuestra reserva (S3.1). S3.1, S3.3, S3.4 y S3.5 están hechos; falta probar los flujos con e-Commerce y Logística. S3.2 está en `main` (falta el login real con RRHH). Siguen S3.6 (FKs), S3.7 (front) y S3.8 (devoluciones con Postventa).
 
 ## Material de referencia
 

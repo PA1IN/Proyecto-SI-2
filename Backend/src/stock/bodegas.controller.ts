@@ -25,7 +25,7 @@ export class BodegasController {
   constructor(private readonly stockService: StockService) {}
 
   @Get()
-  @Roles(ROLES.JEFE_BODEGA, ROLES.OPERADOR_BODEGA, ROLES.CONSULTA)
+  @Roles(ROLES.JEFE_BODEGA, ROLES.OPERADOR_BODEGA, ROLES.CONSULTA_BODEGA)
   async obtenerBodegas() {
     return this.stockService.obtenerBodegas();
   }
