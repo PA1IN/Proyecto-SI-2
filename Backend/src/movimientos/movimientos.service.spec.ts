@@ -1,4 +1,8 @@
-import { ConflictException, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  ConflictException,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { DataSource, EntityManager, QueryFailedError } from 'typeorm';
 import { StockRepository } from '../stock/repositories/stock.repository.js';
 import { MovimientosService } from './movimientos.service.js';
@@ -36,7 +40,7 @@ function crearServicio(
     stockRepo as unknown as StockRepository,
     movimientoRepo as unknown as MovimientoRepository,
     {} as ReservaStrategy,
-    {} as PostventaRepository
+    {} as PostventaRepository,
   );
   return { service, stockRepo, movimientoRepo };
 }

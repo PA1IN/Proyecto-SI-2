@@ -1,4 +1,3 @@
--- script de pureba solo en db local
 -- Reglas de integridad para la recepción de devoluciones de Postventa (Sprint 3, S3.8).
 -- 1) uq_devolucion_unica: una sola recepción DEVOLUCION por id_devolucion (idempotencia / concurrencia).
 --    Al ser parcial, permite registrar un AJUSTE con el mismo id_devolucion si el producto no está apto.

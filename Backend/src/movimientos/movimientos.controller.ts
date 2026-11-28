@@ -98,7 +98,6 @@ export class MovimientosController {
     return this.movimientosService.registrarRecepcion(dto);
   }
 
-  //verificar roles con rrhh
   @Post('devolucion')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(ROLES.JEFE_BODEGA, ROLES.OPERADOR_BODEGA)

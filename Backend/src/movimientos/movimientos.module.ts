@@ -23,8 +23,17 @@ import { DevolucionesController } from './devoluciones.controller.js';
     ]),
     StockModule,
   ],
-  controllers: [MovimientosController, ReservasController, DevolucionesController],
-  providers: [MovimientoRepository, MovimientosService, ReservaStrategy, PostventaRepository],
+  controllers: [
+    MovimientosController,
+    ReservasController,
+    DevolucionesController,
+  ],
+  providers: [
+    MovimientoRepository,
+    MovimientosService,
+    ReservaStrategy,
+    PostventaRepository,
+  ],
   exports: [MovimientoRepository],
 })
 export class MovimientosModule {}

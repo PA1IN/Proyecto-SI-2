@@ -2,7 +2,7 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
-  BadRequestException
+  BadRequestException,
 } from '@nestjs/common';
 import { DataSource, EntityManager, In, QueryFailedError } from 'typeorm';
 import { InvProducto } from '../catalogo/entities/inv-producto.entity.js';
@@ -26,7 +26,7 @@ import {
 import { ReservaStrategy } from './strategies/reserva.strategy.js';
 import { MovimientoRepository } from './repositories/movimiento.repository.js';
 import { PostventaRepository } from './repositories/postventa.repository.js';
-import { ConsultaDevolucion } from './interfaces/devolucion-postventa.interface.js'
+import { ConsultaDevolucion } from './interfaces/devolucion-postventa.interface.js';
 import { RegistrarDevolucionDto } from './dto/registrar-devolucion.dto.js';
 import { ResultadoDevolucion } from './interfaces/resultado-devolucion.interface.js';
 

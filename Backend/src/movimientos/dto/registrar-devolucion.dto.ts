@@ -14,7 +14,8 @@ export class RegistrarDevolucionDto {
 
   @ApiProperty({
     example: true,
-    description: 'true si vuelve a disponible; false si llegó dañado (baja con AJUSTE)',
+    description:
+      'true si vuelve a disponible; false si llegó dañado (baja con AJUSTE)',
   })
   @IsBoolean()
   apto: boolean;
