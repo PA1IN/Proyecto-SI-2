@@ -5,7 +5,7 @@ import { guardarToken } from './api';
 const ROLES = [
   { valor: 'JEFE_BODEGA', etiqueta: 'Jefe de bodega' },
   { valor: 'OPERADOR_BODEGA', etiqueta: 'Operador de bodega' },
-  { valor: 'CONSULTA', etiqueta: 'Consulta' },
+  { valor: 'CONSULTA_BODEGA', etiqueta: 'Consulta' },
 ];
 
 const estiloCampo = { width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc' };

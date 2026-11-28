@@ -26,13 +26,13 @@ export class CatalogoController {
   constructor(private readonly catalogoService: CatalogoService) {}
 
   @Get()
-  @Roles(ROLES.JEFE_BODEGA, ROLES.OPERADOR_BODEGA, ROLES.CONSULTA)
+  @Roles(ROLES.JEFE_BODEGA, ROLES.OPERADOR_BODEGA, ROLES.CONSULTA_BODEGA)
   async obtenerProductos() {
     return this.catalogoService.obtenerProductos();
   }
 
   @Get('temas')
-  @Roles(ROLES.JEFE_BODEGA, ROLES.OPERADOR_BODEGA, ROLES.CONSULTA)
+  @Roles(ROLES.JEFE_BODEGA, ROLES.OPERADOR_BODEGA, ROLES.CONSULTA_BODEGA)
   async obtenerTemas() {
     return this.catalogoService.obtenerTemas();
   }

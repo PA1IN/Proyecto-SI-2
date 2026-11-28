@@ -1,7 +1,7 @@
 export const ROLES = {
   JEFE_BODEGA: 'JEFE_BODEGA',
   OPERADOR_BODEGA: 'OPERADOR_BODEGA',
-  CONSULTA: 'CONSULTA',
+  CONSULTA_BODEGA: 'CONSULTA_BODEGA',
 } as const;
 
 export type RolModulo = (typeof ROLES)[keyof typeof ROLES];

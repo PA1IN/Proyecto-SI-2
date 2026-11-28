@@ -110,7 +110,7 @@ npm run dev
 
 Todos van con el prefijo `/api/v1`. Los dos tipos de credencial van en `Authorization: Bearer <...>`:
 
-- **JWT de RRHH**, para los empleados. El backend toma `employeeId` y `role` del token, y el empleado nunca viene en el body. Solo acepta los roles del módulo: `JEFE_BODEGA`, `OPERADOR_BODEGA` y `CONSULTA`. El token debe traer `exp`.
+- **JWT de RRHH**, para los empleados. El backend toma `employeeId` y `role` del token, y el empleado nunca viene en el body. Solo acepta los roles del módulo: `JEFE_BODEGA`, `OPERADOR_BODEGA` y `CONSULTA_BODEGA`. El token debe traer `exp`.
 - **API key del módulo**, para e-Commerce y Logística (*API key* en la columna Acceso).
 
 En la columna Acceso: **Todos** son los tres roles, **Jefe y Op.** son `JEFE_BODEGA` y `OPERADOR_BODEGA`, y **Jefe** es solo `JEFE_BODEGA`.
