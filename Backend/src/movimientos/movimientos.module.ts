@@ -10,6 +10,8 @@ import { MovimientosController } from './movimientos.controller.js';
 import { ReservasController } from './reservas.controller.js';
 import { MovimientosService } from './movimientos.service.js';
 import { MovimientoRepository } from './repositories/movimiento.repository.js';
+import { PostventaRepository } from './repositories/postventa.repository.js';
+import { DevolucionesController } from './devoluciones.controller.js';
 
 @Module({
   imports: [
@@ -21,8 +23,8 @@ import { MovimientoRepository } from './repositories/movimiento.repository.js';
     ]),
     StockModule,
   ],
-  controllers: [MovimientosController, ReservasController],
-  providers: [MovimientoRepository, MovimientosService, ReservaStrategy],
+  controllers: [MovimientosController, ReservasController, DevolucionesController],
+  providers: [MovimientoRepository, MovimientosService, ReservaStrategy, PostventaRepository],
   exports: [MovimientoRepository],
 })
 export class MovimientosModule {}

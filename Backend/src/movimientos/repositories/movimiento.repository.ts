@@ -144,4 +144,15 @@ export class MovimientoRepository {
       relations: { detalles: { producto: true, bodega: true } },
     });
   }
+
+  // Para DEVOLUCION hay a lo más una por id_devolucion (índice uq_devolucion_unica).
+  async findPorDevolucion(
+    id_devolucion: number,
+    manager?: EntityManager,
+  ): Promise<InvMovimiento | null> {
+    return this.getManager(manager).findOne({
+      where: { id_devolucion, tipo_operacion: 'DEVOLUCION' },
+      relations: { detalles: true },
+    });
+  }
 }

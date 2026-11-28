@@ -5,6 +5,7 @@ import { MovimientosService } from './movimientos.service.js';
 import { InvMovimiento } from './entities/inv-movimiento.entity.js';
 import { MovimientoRepository } from './repositories/movimiento.repository.js';
 import { ReservaStrategy } from './strategies/reserva.strategy.js';
+import { PostventaRepository } from './repositories/postventa.repository.js';
 
 const dto = { id_producto: 5, id_bodega: 2, cantidad: 50 };
 const idEmpleado = 1;
@@ -35,6 +36,7 @@ function crearServicio(
     stockRepo as unknown as StockRepository,
     movimientoRepo as unknown as MovimientoRepository,
     {} as ReservaStrategy,
+    {} as PostventaRepository
   );
   return { service, stockRepo, movimientoRepo };
 }
@@ -190,6 +192,7 @@ describe('MovimientosService.registrarReserva', () => {
       {} as StockRepository,
       movimientoRepo as unknown as MovimientoRepository,
       reservaStrategy as unknown as ReservaStrategy,
+      {} as PostventaRepository,
     );
     return { service, dataSource, movimientoRepo, reservaStrategy };
   }
@@ -325,6 +328,7 @@ describe('MovimientosService.liberarReserva', () => {
       stockRepo as unknown as StockRepository,
       movimientoRepo as unknown as MovimientoRepository,
       {} as ReservaStrategy,
+      {} as PostventaRepository,
     );
     return { service, stockRepo, movimientoRepo };
   }
@@ -428,6 +432,7 @@ describe('MovimientosService.obtenerReservaPorPedido', () => {
       {} as StockRepository,
       movimientoRepo as unknown as MovimientoRepository,
       {} as ReservaStrategy,
+      {} as PostventaRepository,
     );
     return { service, movimientoRepo };
   }
@@ -522,6 +527,7 @@ describe('MovimientosService.registrarDespacho', () => {
       stockRepo as unknown as StockRepository,
       movimientoRepo as unknown as MovimientoRepository,
       {} as ReservaStrategy,
+      {} as PostventaRepository,
     );
     return { service, stockRepo, movimientoRepo };
   }
@@ -676,6 +682,7 @@ describe('MovimientosService.registrarRecepcion', () => {
       stockRepo as unknown as StockRepository,
       movimientoRepo as unknown as MovimientoRepository,
       {} as ReservaStrategy,
+      {} as PostventaRepository,
     );
     return { service, stockRepo, movimientoRepo };
   }
@@ -783,6 +790,81 @@ describe('MovimientosService.registrarRecepcion', () => {
       service.registrarRecepcion(recepcionDto),
     ).resolves.toMatchObject({
       ingreso: previa.ingreso,
+    });
+  });
+});
+
+describe('MovimientosService.obtenerDevolucionPorId', () => {
+  const devolucionBase = {
+    id_devolucion: 1,
+    id_reclamo: 10,
+    id_pedido: 1001,
+    id_producto: 5,
+    sku: '60434-1',
+    nombre_set: 'Space Base and Rocket Launchpad',
+    cantidad: 2,
+    estado_reclamo: 'APROBADO',
+  };
+
+  function crearServicioDevolucion(
+    devolucion: object | null,
+    movimientoExistente: object | null = null,
+  ) {
+    const movimientoRepo = {
+      findPorDevolucion: vi.fn().mockResolvedValue(movimientoExistente),
+    };
+    const postventaRepo = {
+      findDevolucionPorId: vi.fn().mockResolvedValue(devolucion),
+    };
+    const service = new MovimientosService(
+      {} as DataSource,
+      {} as StockRepository,
+      movimientoRepo as unknown as MovimientoRepository,
+      {} as ReservaStrategy,
+      postventaRepo as unknown as PostventaRepository,
+    );
+    return { service, movimientoRepo, postventaRepo };
+  }
+
+  it('devuelve los datos de la devolución cuando existe y aún no fue recibida', async () => {
+    const { service, postventaRepo, movimientoRepo } =
+      crearServicioDevolucion(devolucionBase);
+
+    await expect(service.obtenerDevolucionPorId(1)).resolves.toEqual({
+      id_devolucion: 1,
+      id_pedido: 1001,
+      producto: {
+        id_producto: 5,
+        sku: '60434-1',
+        nombre_set: 'Space Base and Rocket Launchpad',
+      },
+      cantidad: 2,
+      estado: 'APROBADO',
+      recibida: false,
+      id_movimiento: null,
+    });
+    expect(postventaRepo.findDevolucionPorId).toHaveBeenCalledWith(1);
+    expect(movimientoRepo.findPorDevolucion).toHaveBeenCalledWith(1);
+  });
+
+  it('responde 404 si la devolución no existe en Postventa', async () => {
+    const { service, movimientoRepo } = crearServicioDevolucion(null);
+
+    await expect(service.obtenerDevolucionPorId(999)).rejects.toThrow(
+      NotFoundException,
+    );
+    expect(movimientoRepo.findPorDevolucion).not.toHaveBeenCalled();
+  });
+
+  it('indica recibida = true y el id_movimiento si ya fue recepcionada', async () => {
+    const { service } = crearServicioDevolucion(devolucionBase, {
+      id_movimiento: 88,
+    });
+
+    await expect(service.obtenerDevolucionPorId(1)).resolves.toMatchObject({
+      id_devolucion: 1,
+      recibida: true,
+      id_movimiento: 88,
     });
   });
 });

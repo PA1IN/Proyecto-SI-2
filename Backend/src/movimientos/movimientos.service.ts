@@ -24,7 +24,8 @@ import {
 } from './utils/repartir-despacho.util.js';
 import { ReservaStrategy } from './strategies/reserva.strategy.js';
 import { MovimientoRepository } from './repositories/movimiento.repository.js';
-
+import { PostventaRepository } from './repositories/postventa.repository.js';
+import { ConsultaDevolucion } from './interfaces/devolucion-postventa.interface.js'
 @Injectable()
 export class MovimientosService {
   constructor(
@@ -32,6 +33,7 @@ export class MovimientosService {
     private readonly stockRepo: StockRepository,
     private readonly movimientoRepo: MovimientoRepository,
     private readonly reservaStrategy: ReservaStrategy,
+    private readonly postventaRepo: PostventaRepository,
   ) {}
 
   async obtenerHistorial(): Promise<InvMovimiento[]> {
@@ -630,5 +632,34 @@ export class MovimientosService {
       movimiento.detalles = [detalle];
       return movimiento;
     });
+  }
+
+  async obtenerDevolucionPorId(
+    idDevolucion: number,
+  ): Promise<ConsultaDevolucion> {
+    const dev = await this.postventaRepo.findDevolucionPorId(idDevolucion);
+    if (!dev) {
+      throw new NotFoundException(
+        `La devolución ${idDevolucion} no existe en Postventa`,
+      );
+    }
+
+    const existente = await this.movimientoRepo.findPorDevolucion(idDevolucion);
+    return {
+      id_devolucion: dev.id_devolucion,
+      id_pedido: dev.id_pedido,
+      producto:
+        dev.id_producto !== null
+          ? {
+              id_producto: dev.id_producto,
+              sku: dev.sku,
+              nombre_set: dev.nombre_set,
+            }
+          : null,
+      cantidad: dev.cantidad,
+      estado: dev.estado_reclamo,
+      recibida: existente !== null,
+      id_movimiento: existente?.id_movimiento ?? null,
+    };
   }
 }
