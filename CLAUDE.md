@@ -48,7 +48,8 @@ Contexto y reglas de trabajo para retomar el proyecto en cualquier sesión. Resp
   - Datos iniciales (10 o más por tabla).
   - Al menos 1 validación.
   - Demo del flujo parcial, mostrando lectura y escritura en la BD.
-- **Sprint 3 (actual):**
+- **Sprints 3 y 4 se presentan juntos** (decidido el 28-11-2026, por tiempo): la entrega final es el proyecto terminado. Plan en "Sprint 3: plan" y "Sprint 4 y entrega final: plan".
+- **Sprint 3:**
   - Integración con los maestros canónicos.
   - Al menos 1 escenario de integración cruzada con otro módulo.
   - Autenticación y roles.
@@ -140,7 +141,7 @@ id_despacho → logistica, id_proveedor e id_oc → compras
 - **`id_empleado` en movimientos automáticos (13-11-2026):** nullable solo en `RESERVA` y `LIBERACION`, que las dispara e-Commerce sin un empleado detrás (`NULL` = lo hizo el sistema). El `CHECK chk_empleado_requerido` lo exige en los demás tipos. Script `db/ddl/04_empleado_nullable.sql`; no depende de RRHH, porque la futura FK acepta `NULL`.
 - **Una sola reserva por pedido (14-11-2026):** índice único parcial `uq_reserva_por_pedido` sobre `id_pedido` en las filas `RESERVA` (`db/ddl/05_reserva_unica.sql`). Hace idempotente la reserva aunque dos reintentos lleguen a la vez: la segunda falla en la BD y el backend devuelve la existente. Incluye las `ANULADO`: acordado con e-Commerce que un pedido cancelado no se reactiva; se crea otro con un id nuevo.
 - **`id_despacho` como texto (16-11-2026):** `varchar(50)` con `UNIQUE`, guarda el id de la guía de Logística (`GD-52341`); el `UNIQUE` hace idempotente el despacho. Script `db/ddl/07_despacho_varchar.sql`.
-- **Proveedor de la recepción:** el backend valida que `id_proveedor` coincida con el proveedor de la OC.
+- **Proveedor de la recepción:** el backend todavía **no** valida que `id_proveedor` coincida con el proveedor de la OC (no lee `compras.compras_oc`). Pendiente en S3.5.
 
 ### Reglas de negocio
 
@@ -156,7 +157,7 @@ id_despacho → logistica, id_proveedor e id_oc → compras
 | `EGRESO` | reservada − n | Logística confirma el despacho |
 | `LIBERACION` | reservada − n, disponible + n | Cancelación, anulación o despacho parcial |
 | `AJUSTE` | disponible ± n | Diferencias con el conteo físico, merma, pérdida o error |
-| `DEVOLUCION` | por definir con Postventa | |
+| `DEVOLUCION` | disponible + n; si llegó dañado, además un `AJUSTE` −n con el mismo `id_devolucion` | Bodega recibe una devolución registrada en Postventa |
 
 - **Elección de bodega al reservar:** se usa la que tenga más stock del producto, con empate resuelto por el `id_bodega` menor. Si una bodega no alcanza, se completa con la siguiente, generando una línea por bodega.
 - **Estados e inmutabilidad:**
@@ -175,8 +176,8 @@ id_despacho → logistica, id_proveedor e id_oc → compras
 
 ### Decisiones abiertas (no bloquean el DDL)
 
-- **`DEVOLUCION`:** pendiente con Postventa si reingresa como disponible o queda en revisión.
-- **KPIs:** se definen más adelante con los datos que haya.
+- **`DEVOLUCION`:** implementada (PR #25) como reingreso a disponible, con `AJUSTE` si no está apta. Falta confirmar con Postventa qué `estado` del reclamo habilita la recepción (hoy no se valida).
+- **KPIs:** hay una propuesta en "Sprint 4 y entrega final: plan"; falta elegir con el equipo cuáles quedan.
 - **Roles:** ver "Roles y permisos del módulo". RRHH ya creó nuestros roles (27-11); falta que entregue el secreto del JWT.
 - **Diagrama draw.io:** quitar las tildes de `tipo_operacion`, corregir la errata "inv_movimientos", cambiar "Hereda de" por "FK a", agregar `cantidad_minima` y quitar `coleccion`, `edad_minima` y `tipo_construccion`.
 
@@ -263,7 +264,7 @@ Reservar, liberar y confirmar despachos o recepciones lo invocan e-Commerce y Lo
   - **`POST /movimientos/recepcion`** (rama `integracion-logistica`): con `{ id_oc, id_proveedor, nro_guia_proveedor, id_empleado, id_recepcion_logistica?, fecha_recepcion?, lineas: [{ id_producto, id_bodega, cantidad }] }`, cantidad neta. Un reintento con los mismos datos devuelve la recepción ya registrada; la misma guía con otras líneas u otro proveedor da 409. Una OC puede llegar en varias guías.
   - **Les toca a ellos:** pasar `id_pedido` a `int`, agregar `id_proveedor` y `nro_guia_proveedor` a `log_recepcion`, y reemplazar sus tablas de prueba (`test_log_*`) por llamadas a nuestra API con su clave.
 - **Compras:** FKs de `id_proveedor` e `id_oc`, y cómo reciben la alerta de stock bajo (`GET /stock` ya trae `bodegas_bajo_minimo`). Sin reunión todavía.
-- **Postventa:** efecto de una devolución en el stock. Sin reunión todavía.
+- **Postventa:** `GET /devoluciones/:id` y `POST /movimientos/devolucion` en `main` (PR #25). Leemos `postventa.devolucion` y `postventa.reclamo` (solo lectura; `reclamo.id_venta` se guarda como `id_pedido`). Falta revisar en Neon que sus columnas coincidan con `db/local/01_postventa_prueba.sql`, ejecutar el DDL 09 y probar con ellos.
 
 ## Arquitectura del backend
 
@@ -292,6 +293,7 @@ Al 16-11-2026 existen `config/`, `common/`, `health/`, `database/`, `auth/` (`Ap
 - `GET /stock`, `/stock/:idProducto`
 - `GET /movimientos`, `/movimientos/:id`; `POST /movimientos/ingreso`, `/movimientos/ajuste`
 - Con `ApiKeyGuard` (integraciones): `POST /movimientos/reserva`, `/movimientos/liberacion`, `/movimientos/despacho` y `/movimientos/recepcion`; `GET /reservas?id_pedido=`
+- Con JWT (Jefe y Operador): `GET /devoluciones/:id` y `POST /movimientos/devolucion`
 - `POST /auth/dev-token` y `GET /auth/me`. Los endpoints que no son de integración piden el JWT con los roles de "Roles y permisos del módulo".
 
 ### Reglas técnicas (lecciones del repo de referencia heuremi/backend-inventario)
@@ -306,7 +308,7 @@ Al 16-11-2026 existen `config/`, `common/`, `health/`, `database/`, `auth/` (`Ap
 - Usar baja lógica (`activo`), no borrado físico.
 - Si dos entidades se importan mutuamente, el lado `@ManyToOne` declara el tipo como `Relation<T>`. Si no, en ESM la app compilada se cae al iniciar (`Cannot access 'X' before initialization`). Vitest no detecta este error: hay que probar con `npm run build` y arrancar la app.
 
-## Estado de ramas (al 26-11-2026)
+## Estado de ramas (al 28-11-2026)
 
 `main` tiene todo lo desarrollado. Cada tarea nueva va en una rama propia desde `main` actualizada y entra por PR.
 
@@ -324,7 +326,9 @@ Al 16-11-2026 existen `config/`, `common/`, `health/`, `database/`, `auth/` (`Ap
 | #21 | `integracion-logistica` | Peso y medidas (DDL/DML 06), `id_despacho` texto (DDL 07), `GET /reservas`, despacho y recepción para Logística |
 | #22 | `docker-backend` | `Dockerfile` y `.dockerignore` del backend |
 | #23 | `auth-jwt-ajustes` | S3.2 sobre el trabajo de `David-rama`: guards de JWT y roles, empleado desde el token, login de prueba en el front, `AUTH_DEV_TOKENS`, solo los 3 roles del módulo, `exp` y `employeeId` obligatorios, y FK a `rrhh.empleado` (DDL 08) |
-| — | `rol-consulta-bodega` | Rol `CONSULTA` renombrado a `CONSULTA_BODEGA` |
+| #24 | `rol-consulta-bodega` | Rol `CONSULTA` renombrado a `CONSULTA_BODEGA` |
+| #25 | `integracion-postventa` | Devoluciones de Postventa: consulta previa, recepción con `AJUSTE` si no está apta, DDL 09 (índice único y check) y tablas locales de prueba de `postventa` |
+| — | `plan-entrega-final` | Plan de los Sprints 3 y 4 para la entrega final |
 
 ## Plan base del backend
 
@@ -351,13 +355,36 @@ Exige: integración con los maestros canónicos, al menos 1 escenario de integra
 | S3.1 | **Reserva y liberación para e-Commerce.** `POST /movimientos/reserva` con `{ id_pedido, lineas: [{ id_producto, cantidad }] }`: un movimiento `RESERVA` `PENDIENTE`, todo o nada (409 si una línea no alcanza), idempotente por `id_pedido`. `POST /movimientos/liberacion` con `{ id_pedido }`: devuelve lo reservado, crea la `LIBERACION` y deja la reserva `ANULADO`. Usa `ReservaStrategy`. El `RegistrarReservaDto` actual recibe un solo producto: cambiarlo a `lineas` | **En `main` (PR #20).** Falta entregar la API key a e-Commerce y probar con ellos |
 | S3.2 | **Autenticación y roles.** Guard de JWT (lee `employeeId` y `role`, secreto en `.env`), guard de roles con los nombres en constantes, tokens de prueba solo en desarrollo y sacar `id_empleado` del body | **En `main` (PR #23).** Roles creados en RRHH (27-11). Faltan el secreto real, asignar los roles a empleados de prueba y el login real (S3.7) |
 | S3.3 | **Credencial de servicio** para los endpoints de integración. `ApiKeyGuard` con claves por módulo en `INTEGRACION_API_KEYS`, aplicado a S3.1, S3.4, S3.5 y `GET /reservas` | **Hecho.** Claves de e-Commerce y Logística generadas; falta entregarlas por un canal privado |
-| S3.4 | **Despacho.** `POST /movimientos/despacho` (nombre acordado con Logística): `EGRESO` de lo recolectado y `LIBERACION` del resto en una llamada, su fila en `inv_despachos_operario`, y la reserva `COMPLETADO` | **Implementado (16-11, `integracion-logistica`)** |
-| S3.5 | **Recepción de OC.** `POST /movimientos/recepcion`: `INGRESO` con su fila en `inv_recepciones_compra`; idempotente por `id_oc` + `nro_guia_proveedor` (409 si cambian los datos) | **Implementado (16-11, `integracion-logistica`).** Falta validar que `id_proveedor` sea el de la OC cuando exista la tabla de Compras |
-| S3.6 | **FKs a otros módulos** con `ALTER TABLE`. La de `id_empleado` → `rrhh.empleado` está creada en Neon (DDL 08, 26-11, `NOT VALID`). Siguen la de `id_devolucion` (Postventa, ya posible) y las demás | Tablas de cada grupo |
-| S3.7 | **Front:** mostrar la imagen del producto, inicio de sesión con RRHH y pantallas de ajuste e historial | S3.2 para el login |
-| S3.8 | **Devoluciones** con Postventa | Reunión con Postventa |
+| S3.4 | **Despacho.** `POST /movimientos/despacho` (nombre acordado con Logística): `EGRESO` de lo recolectado y `LIBERACION` del resto en una llamada, su fila en `inv_despachos_operario`, y la reserva `COMPLETADO` | **En `main` (PR #21).** Falta probar con Logística |
+| S3.5 | **Recepción de OC.** `POST /movimientos/recepcion`: `INGRESO` con su fila en `inv_recepciones_compra`; idempotente por `id_oc` + `nro_guia_proveedor` (409 si cambian los datos) | **En `main` (PR #21).** Falta validar que `id_proveedor` sea el de la OC leyendo `compras.compras_oc` (propuesta enviada a Compras) |
+| S3.6 | **FKs a otros módulos** con `ALTER TABLE`. La de `id_empleado` → `rrhh.empleado` está creada en Neon (DDL 08, 26-11, `NOT VALID`). Siguen `id_oc` → `compras.compras_oc` e `id_proveedor` → `compras.compras_proveedor` (pedidas por Compras; antes, consulta previa de huérfanos) y `id_devolucion` → `postventa.devolucion` cuando Postventa cierre su esquema | Compras y Postventa |
+| S3.7 | **Front:** imagen del producto, login real con RRHH (quitar `/auth/dev-token` y el login de prueba) y pantallas de ajuste, historial y recibir devolución | Login: RRHH asigna los roles a empleados de prueba y entrega el `JWT_SECRET`. Probar antes con `GET /auth/me` |
+| S3.8 | **Devoluciones con Postventa.** Consulta previa y recepción (apto o no apto) | **En `main` (PR #25).** Faltan: revisar sus columnas en Neon, ejecutar el DDL 09 (con `pg_dump` y las consultas de verificación), confirmar el estado del reclamo que habilita la recepción, y README al día |
+| S3.9 | **Probar cada integración en Neon con su grupo** y guardar evidencia (request, respuesta, capturas de `inv_movimiento` y del stock): reserva y liberación (e-Commerce), `GET /reservas`, despacho y recepción (Logística) y devolución (Postventa). Antes, entregar las API keys por un canal privado | Agenda con cada grupo. Alimenta S4.5 y S4.6 |
 
-**Integración cruzada para la demo:** checkout de e-Commerce con nuestra reserva (S3.1). S3.1, S3.3, S3.4 y S3.5 están hechos; falta probar los flujos con e-Commerce y Logística. S3.2 está en `main` (falta el login real con RRHH). Siguen S3.6 (FKs), S3.7 (front) y S3.8 (devoluciones con Postventa).
+**Integración cruzada para la demo:** checkout de e-Commerce con nuestra reserva (S3.1). Lo implementado está todo en `main`; lo que falta del Sprint 3 es S3.9 (probar con los grupos), el login real y las pantallas del front (S3.7), las FKs de Compras (S3.6) y cerrar Postventa en Neon (S3.8).
+
+## Sprint 4 y entrega final: plan
+
+Exige: transacción end-to-end validada, 100 o más registros en una tabla crítica, KPIs vinculados al módulo, dashboard en Power BI con vista táctica y estratégica, 2 escenarios de integración documentados y demo final. El requisito de 100 registros ya se cumple con `inv_producto` (129).
+
+| # | Tarea | Depende de |
+| --- | --- | --- |
+| S4.1 | **Historial de movimientos para los KPIs.** DML con 100 o más movimientos repartidos en varios meses (los 6 tipos), `fecha_registro` en el pasado y stock coherente. En Neon es permanente (el trigger impide borrarlos): probar primero en local y respaldar con `pg_dump` | — |
+| S4.2 | **Vistas SQL de los KPIs** (`inventario.v_kpi_...`) en un DDL nuevo, una por KPI elegido | S4.1 para tener datos |
+| S4.3 | **Conectar Power BI a Neon** (SSL obligatorio), idealmente con un usuario de solo lectura sobre las vistas. Probarlo temprano | S4.2 |
+| S4.4 | **Dashboard con 2 vistas** (táctica y estratégica), reglas de cálculo de cada métrica documentadas, conclusiones y propuestas de mejora del proceso | S4.3 |
+| S4.5 | **Transacción end-to-end en Neon:** pedido pagado en e-Commerce → reserva → `GET /reservas` y picking → despacho de Logística → stock final, con el stock antes y después | S3.9 |
+| S4.6 | **Pruebas de integración documentadas** (mínimo 2; hay 4 posibles: reserva, despacho, recepción y devolución). Por escenario: objetivo, grupos, precondiciones, request, respuesta esperada y obtenida, captura y fecha | S3.9 |
+| S4.7 | **Informe final PDF** con la estructura del enunciado: introducción, problemática, backlog y tablero, BPMN, diseño funcional (formularios y opciones por perfil), diseño técnico (modelo lógico y arquitectura por capa), evidencias de validaciones, roles, seguridad e integración, KPIs y Power BI, conclusiones | Todo lo anterior |
+| S4.8 | **BPMN, ER y tablero al día.** BPMN: carriles de procesos automáticos, stock bajo después de la reserva, devolución con `DEVOLUCION` + `AJUSTE` y los 404/409. ER: ver "Diagrama draw.io" en decisiones abiertas. Tablero con los Sprints 3 y 4 y sus retrospectivas | — |
+| S4.9 | **Demo final:** guion con datos conocidos (un SKU nuevo, porque uno usado da 409), cuentas de los 3 roles y los otros grupos conectados. Ensayarla completa contra Neon | S3.9, S4.4 |
+
+**KPIs propuestos** (en unidades, porque el precio es de e-Commerce; falta elegir cuáles quedan):
+- **Táctica (operación semanal del Jefe de Bodega):** productos bajo el mínimo por bodega (`cantidad_disponible < cantidad_minima`), quiebres de stock (activos con disponible 0), tiempo promedio de `RESERVA` a `EGRESO` del mismo `id_pedido`, y reservas `PENDIENTE` con su antigüedad.
+- **Estratégica (tendencia mensual):** rotación (unidades egresadas / stock promedio), tasa de quiebre mensual, tasa de devolución (`DEVOLUCION` / `EGRESO`, y % no aptas) y diferencias de inventario (`AJUSTE` negativos / unidades ingresadas).
+
+Si alcanza el tiempo, los pendientes del plan base: paginación, `/health` con la BD y `npm audit fix`.
 
 ## Material de referencia
 
