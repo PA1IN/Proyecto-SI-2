@@ -58,7 +58,7 @@ docker compose up -d
 La primera vez, Docker crea la base `si2_local` y el schema `inventario`. Después hay que cargar las tablas y los datos con los scripts del repo, en este orden:
 
 ```bash
-docker exec inventario-postgres psql -U inventario -d si2_local -v ON_ERROR_STOP=1 -f /db/ddl/01_tablas.sql -f /db/ddl/02_triggers.sql -f /db/ddl/03_imagen_producto.sql -f /db/ddl/04_empleado_nullable.sql -f /db/ddl/05_reserva_unica.sql -f /db/ddl/06_medidas_producto.sql -f /db/ddl/07_despacho_varchar.sql -f /db/ddl/08_fk_empleado.sql -f /db/dml/01_temas.sql -f /db/dml/02_bodegas.sql -f /db/dml/03_productos.sql -f /db/dml/04_stock_inicial.sql -f /db/dml/05_imagenes_productos.sql -f /db/dml/06_medidas_productos.sql
+docker exec inventario-postgres psql -U inventario -d si2_local -v ON_ERROR_STOP=1 -f /db/local/00_schema.sql -f /db/local/01_postventa_prueba.sql -f /db/ddl/01_tablas.sql -f /db/ddl/02_triggers.sql -f /db/ddl/03_imagen_producto.sql -f /db/ddl/04_empleado_nullable.sql -f /db/ddl/05_reserva_unica.sql -f /db/ddl/06_medidas_producto.sql -f /db/ddl/07_despacho_varchar.sql -f /db/ddl/08_fk_empleado.sql -f /db/ddl/09_devolucion.sql -f /db/dml/01_temas.sql -f /db/dml/02_bodegas.sql -f /db/dml/03_productos.sql -f /db/dml/04_stock_inicial.sql -f /db/dml/05_imagenes_productos.sql -f /db/dml/06_medidas_productos.sql
 ```
 
 Opcional: `-f /db/test/validar_ddl.sql` revisa las restricciones y los triggers sin dejar datos.

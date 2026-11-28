@@ -121,7 +121,30 @@ BEGIN
   INSERT INTO inventario.inv_recepciones_compra (id_movimiento, id_proveedor, id_oc, nro_guia_proveedor)
     VALUES (m2, 1, 10, 'G-2');
 
-  RAISE NOTICE 'Validación del DDL: OK (13 rechazos esperados y 4 casos permitidos)';
+  -- Devoluciones (DDL 09): id_devolucion obligatorio y único para tipo DEVOLUCION.
+  ok := false;
+  BEGIN
+    INSERT INTO inventario.inv_movimiento (id_empleado, tipo_operacion, estado)
+      VALUES (1, 'DEVOLUCION', 'COMPLETADO');
+  EXCEPTION WHEN check_violation THEN ok := true; END;
+  ASSERT ok, 'Se permitió una DEVOLUCION sin id_devolucion';
+
+  -- Caso permitido: primera recepción de la devolución 700.
+  INSERT INTO inventario.inv_movimiento (id_empleado, id_devolucion, tipo_operacion, estado)
+    VALUES (1, 700, 'DEVOLUCION', 'COMPLETADO');
+
+  ok := false;
+  BEGIN
+    INSERT INTO inventario.inv_movimiento (id_empleado, id_devolucion, tipo_operacion, estado)
+      VALUES (1, 700, 'DEVOLUCION', 'COMPLETADO');
+  EXCEPTION WHEN unique_violation THEN ok := true; END;
+  ASSERT ok, 'Se permitió registrar dos veces la misma DEVOLUCION';
+
+  -- Caso permitido: un AJUSTE con el mismo id_devolucion (producto recibido no apto).
+  INSERT INTO inventario.inv_movimiento (id_empleado, id_devolucion, tipo_operacion, estado)
+    VALUES (1, 700, 'AJUSTE', 'COMPLETADO');
+
+  RAISE NOTICE 'Validación del DDL: OK (15 rechazos esperados y 6 casos permitidos)';
 END;
 $$;
 

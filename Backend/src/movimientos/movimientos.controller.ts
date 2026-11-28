@@ -21,6 +21,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 import { RolesGuard } from '../auth/roles.guard.js';
 import { RegistrarDespachoDto } from './dto/registrar-despacho.dto.js';
 import { RegistrarRecepcionDto } from './dto/registrar-recepcion.dto.js';
+import { RegistrarDevolucionDto } from './dto/registrar-devolucion.dto.js';
 
 @ApiTags('movimientos')
 @Controller('movimientos')
@@ -95,5 +96,16 @@ export class MovimientosController {
   @ApiBearerAuth()
   async registrarRecepcion(@Body() dto: RegistrarRecepcionDto) {
     return this.movimientosService.registrarRecepcion(dto);
+  }
+
+  @Post('devolucion')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(ROLES.JEFE_BODEGA, ROLES.OPERADOR_BODEGA)
+  @ApiBearerAuth()
+  async registrarDevolucion(
+    @Body() dto: RegistrarDevolucionDto,
+    @CurrentUser() user: UsuarioAutenticado,
+  ) {
+    return this.movimientosService.registrarDevolucion(dto, user.id_empleado);
   }
 }

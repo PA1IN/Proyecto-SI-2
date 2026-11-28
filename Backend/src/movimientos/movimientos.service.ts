@@ -2,6 +2,7 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 import { DataSource, EntityManager, In, QueryFailedError } from 'typeorm';
 import { InvProducto } from '../catalogo/entities/inv-producto.entity.js';
@@ -24,6 +25,10 @@ import {
 } from './utils/repartir-despacho.util.js';
 import { ReservaStrategy } from './strategies/reserva.strategy.js';
 import { MovimientoRepository } from './repositories/movimiento.repository.js';
+import { PostventaRepository } from './repositories/postventa.repository.js';
+import { ConsultaDevolucion } from './interfaces/devolucion-postventa.interface.js';
+import { RegistrarDevolucionDto } from './dto/registrar-devolucion.dto.js';
+import { ResultadoDevolucion } from './interfaces/resultado-devolucion.interface.js';
 
 @Injectable()
 export class MovimientosService {
@@ -32,6 +37,7 @@ export class MovimientosService {
     private readonly stockRepo: StockRepository,
     private readonly movimientoRepo: MovimientoRepository,
     private readonly reservaStrategy: ReservaStrategy,
+    private readonly postventaRepo: PostventaRepository,
   ) {}
 
   async obtenerHistorial(): Promise<InvMovimiento[]> {
@@ -629,6 +635,155 @@ export class MovimientosService {
 
       movimiento.detalles = [detalle];
       return movimiento;
+    });
+  }
+
+  async obtenerDevolucionPorId(
+    idDevolucion: number,
+  ): Promise<ConsultaDevolucion> {
+    const dev = await this.postventaRepo.findDevolucionPorId(idDevolucion);
+    if (!dev) {
+      throw new NotFoundException(
+        `La devolución ${idDevolucion} no existe en Postventa`,
+      );
+    }
+
+    const existente = await this.movimientoRepo.findPorDevolucion(idDevolucion);
+    return {
+      id_devolucion: dev.id_devolucion,
+      id_pedido: dev.id_pedido,
+      producto:
+        dev.id_producto !== null
+          ? {
+              id_producto: dev.id_producto,
+              sku: dev.sku,
+              nombre_set: dev.nombre_set,
+            }
+          : null,
+      cantidad: dev.cantidad,
+      estado: dev.estado_reclamo,
+      recibida: existente !== null,
+      id_movimiento: existente?.id_movimiento ?? null,
+    };
+  }
+  async registrarDevolucion(
+    dto: RegistrarDevolucionDto,
+    idEmpleado: number,
+  ): Promise<ResultadoDevolucion> {
+    return this.dataSource.transaction(async (manager) => {
+      const dev = await this.postventaRepo.findDevolucionPorId(
+        dto.id_devolucion,
+        manager,
+      );
+      if (!dev) {
+        throw new NotFoundException(
+          `La devolución ${dto.id_devolucion} no existe en Postventa`,
+        );
+      }
+
+      const existente = await this.movimientoRepo.findPorDevolucion(
+        dto.id_devolucion,
+        manager,
+      );
+      if (existente) {
+        throw new ConflictException(
+          `La devolución ${dto.id_devolucion} ya fue recibida (movimiento ${existente.id_movimiento})`,
+        );
+      }
+
+      if (
+        dev.id_producto === null ||
+        dev.cantidad === null ||
+        dev.cantidad <= 0
+      ) {
+        throw new BadRequestException(
+          `La devolución ${dto.id_devolucion} tiene producto o cantidad inválidos`,
+        );
+      }
+
+      const producto = await manager.findOneBy(InvProducto, {
+        id_producto: dev.id_producto,
+      });
+      if (!producto || !producto.activo) {
+        throw new NotFoundException(
+          `El producto con ID ${dev.id_producto} no existe o está inactivo`,
+        );
+      }
+
+      const bodegaExiste = await manager.existsBy(InvBodegas, {
+        id_bodega: dto.id_bodega,
+      });
+      if (!bodegaExiste) {
+        throw new NotFoundException(
+          `La bodega con ID ${dto.id_bodega} no existe`,
+        );
+      }
+
+      const devolucion = await this.movimientoRepo.crearCabecera(
+        {
+          id_empleado: idEmpleado,
+          id_pedido: dev.id_pedido,
+          id_devolucion: dev.id_devolucion,
+          tipo_operacion: 'DEVOLUCION',
+          estado: 'COMPLETADO',
+        },
+        manager,
+      );
+      const detalleDev = await this.movimientoRepo.crearDetalle(
+        {
+          id_movimiento: devolucion.id_movimiento,
+          id_producto: dev.id_producto,
+          id_bodega: dto.id_bodega,
+          cantidad: dev.cantidad,
+        },
+        manager,
+      );
+      devolucion.detalles = [detalleDev];
+
+      await this.stockRepo.sumarDisponible(
+        dev.id_producto,
+        dto.id_bodega,
+        dev.cantidad,
+        manager,
+      );
+
+      let ajuste: InvMovimiento | null = null;
+      if (!dto.apto) {
+        ajuste = await this.movimientoRepo.crearCabecera(
+          {
+            id_empleado: idEmpleado,
+            id_pedido: dev.id_pedido,
+            id_devolucion: dev.id_devolucion,
+            tipo_operacion: 'AJUSTE',
+            estado: 'COMPLETADO',
+          },
+          manager,
+        );
+        const detalleAjuste = await this.movimientoRepo.crearDetalle(
+          {
+            id_movimiento: ajuste.id_movimiento,
+            id_producto: dev.id_producto,
+            id_bodega: dto.id_bodega,
+            cantidad: -dev.cantidad,
+          },
+          manager,
+        );
+        ajuste.detalles = [detalleAjuste];
+
+        const descontado = await this.stockRepo.restarDisponible(
+          dev.id_producto,
+          dto.id_bodega,
+          dev.cantidad,
+          manager,
+        );
+        if (!descontado) {
+          throw new ConflictException(
+            'Stock insuficiente para dar de baja la devolución no apta',
+          );
+        }
+      }
+
+      return { devolucion, ajuste };
     });
   }
 }
