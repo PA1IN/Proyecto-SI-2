@@ -21,13 +21,13 @@ export class StockController {
 
   // Resumen por producto (todas las bodegas sumadas), para el listado del front en una sola request.
   @Get()
-  @Roles(ROLES.JEFE_BODEGA, ROLES.OPERADOR_BODEGA, ROLES.CONSULTA)
+  @Roles(ROLES.JEFE_BODEGA, ROLES.OPERADOR_BODEGA, ROLES.CONSULTA_BODEGA)
   async obtenerResumenStock() {
     return this.stockService.obtenerResumenStock();
   }
 
   @Get(':idProducto')
-  @Roles(ROLES.JEFE_BODEGA, ROLES.OPERADOR_BODEGA, ROLES.CONSULTA)
+  @Roles(ROLES.JEFE_BODEGA, ROLES.OPERADOR_BODEGA, ROLES.CONSULTA_BODEGA)
   async obtenerStockPorProducto(
     @Param('idProducto', ParseIntPipe) idProducto: number,
   ) {
